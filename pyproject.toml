@@ -1,0 +1,51 @@
+[project]
+name = "telecom-egypt-rag"
+version = "0.1.0"
+description = "Local on-prem RAG chatbot for Telecom Egypt official website and uploaded documents"
+requires-python = ">=3.10"
+dependencies = [
+    "accelerate",
+    "beautifulsoup4",
+    "docling",
+    "fastapi",
+    "httpx",
+    "joblib",
+    "langchain",
+    "langchain-community",
+    "lxml",
+    "numpy",
+    "orjson",
+    "pandas",
+    "pillow",
+    "prometheus-client",
+    "pydantic",
+    "pydantic-settings",
+    "pymupdf",
+    "python-docx",
+    "python-dotenv",
+    "qdrant-client",
+    "rank-bm25",
+    "requests",
+    "rich",
+    "scikit-learn",
+    "sentence-transformers",
+    "streamlit",
+    "torch",
+    "tqdm",
+    "transformers",
+    "uvicorn",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "ruff",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"

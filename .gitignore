@@ -1,0 +1,71 @@
+# Python caches and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets and local machine configuration
+.env
+config/.env
+
+# Logs are runtime artifacts and should not be committed.
+data/logs/*
+*.log
+!data/logs/.gitkeep
+
+# Uploads may contain private customer or reviewer files.
+data/uploads/*
+!data/uploads/.gitkeep
+
+# Generated indexes and unified KB outputs are reproducible from source data.
+data/indexes/*
+data/knowledge_base/*
+!data/indexes/.gitkeep
+!data/knowledge_base/.gitkeep
+
+# Local database/vector-store files belong to the deployment environment.
+qdrant_storage/
+ollama_storage/
+grafana_storage/
+prometheus_storage/
+*.sqlite
+*.db
+
+# Large derived artifacts and local model files should be pulled/generated locally.
+*.parquet
+*.npy
+*.pkl
+*.pt
+*.bin
+*.safetensors
+*.onnx
+*.gguf
+models/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Nested Python cache directories in data exports.
+data/**/__pycache__/
+data/**/**pycache**/

@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Future FastAPI rag-api will expose /metrics on port 8000.
+  - job_name: rag-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+
+  # Qdrant metrics availability may depend on Qdrant configuration/version.
+  - job_name: qdrant
+    static_configs:
+      - targets: ["qdrant:6333"]
+
+  # Grafana will use Prometheus as a data source manually or through
+  # provisioning in a later phase.

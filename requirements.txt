@@ -1,0 +1,14 @@
+# This project uses uv for dependency management.
+# Dependencies are defined in pyproject.toml.
+#
+# Install uv:
+# pip install uv
+#
+# Create virtual environment:
+# uv venv
+#
+# Install dependencies:
+# uv sync
+#
+# Run commands:
+# uv run python <script.py>
