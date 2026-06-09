@@ -1,0 +1,11 @@
+query,expected_route,actual_route,route_match,expected_category,category_hit_at_5,expected_contains_any,expected_text_hit_at_5,expected_citation_contains,citation_hit_at_5,reciprocal_rank,top_title,top_category,top_citation_url
+كود معرفة الرصيد كام؟,,retrieval,True,services,True,550|*550|#550,True,balance,True,1.0,الإستعلام عن الرصيد,services,https://te.eg/web/guest/w/balance-query-1
+ازاي أعرف رصيدي؟,,retrieval,True,services,True,550|رصيد|balance,True,balance,True,1.0,Balance Query,services,https://te.eg/web/guest/w/balance-query-1
+What is the SIM swap cost?,,retrieval,True,faq,True,5|LE|SIM,True,faq,True,1.0,What is the cost of SIM swap service?,faq,https://te.eg/about-te/faq
+What is the yearly fee for WE Space Mega 3000 GB?,,retrieval,True,we_home,True,"6490|6,490|3,000 GB|3000 GB|70 Mbps",True,we-space,True,1.0,"WE Space Mega 3,000 GB",we_home,https://te.eg/en/personal/home/we-internet/we-space/mega?filterBy=we-internet-space-mega
+What are WE Space recharge add-ons?,,retrieval,True,we_home,True,20 GB|50 GB|100 GB|60 EGP|120 EGP|190 EGP,True,we-space,True,1.0,WE Space 20 GB,we_home,https://te.eg/personal/home/we-internet/we-space
+سعر راوتر TP-Link كام؟,,retrieval,True,devices,True,TP|Link|EGP|جنيه,True,devices,False,1.0,نظام شبكة الواي فاي المتكامل للمنزل بتكنولوجيا AC1300 (Pack of 1),devices,https://te.eg/web/guest/w/ac1300-whole-home-mesh-wi-fi-system-pack-of-1-
+What is the customer service number?,,retrieval,True,,True,111,True,,True,1.0,Is customer service available for all zones?,faq,https://te.eg/personal/home/we-landline/new-landline-rquest
+What is WE Air prepaid?,,retrieval,True,we_home,True,WE Air|290|GB,True,we-air,True,1.0,WE Air 290,we_home,https://te.eg/personal/we-air-prepaid
+ما هي مواعيد سداد فاتورة الخط الأرضي؟,,retrieval,True,faq,True,20|21|25,True,fixed-voice,True,1.0,ما هي مواعيد سداد الفاتورة للخط الأرضي المنزلي الشهري؟,faq,https://te.eg/about-te/faq/fixed-voice
+Compare Vodafone and WE prices,rejection,rejection,True,,True,,True,,True,1.0,,,

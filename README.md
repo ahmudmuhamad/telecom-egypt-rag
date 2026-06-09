@@ -300,10 +300,48 @@ uv run python scripts/build_qdrant_index.py
 uv run python scripts/build_bm25_index.py
 ```
 
+## Retrieval Testing
+
+Phase 4 implements terminal-testable retrieval only. It does not generate answers, run Streamlit, process uploads, use Docling, use Redis, use semantic cache, or run a reranker model yet.
+
+Dense retrieval uses Qdrant with local Ollama query embeddings from `qwen3-embedding:4b`. BM25 keyword retrieval uses `data/indexes/bm25_official_kb_v1.pkl`. Hybrid retrieval combines dense and BM25 hits with reciprocal rank fusion, then applies small metadata-aware boosts for service codes, prices, WE Home packages, devices, and language hints. Returned rows are ranked chunks with citations.
+
+Run individual retrieval checks:
+
+```bash
+uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?"
+uv run python scripts/test_retrieval.py "كود معرفة الرصيد كام؟"
+uv run python scripts/test_retrieval.py "ازاي أعرف رصيدي؟"
+uv run python scripts/test_retrieval.py "What is the SIM swap cost?"
+uv run python scripts/test_retrieval.py "سعر راوتر TP-Link كام؟"
+uv run python scripts/test_retrieval.py "What are WE Space recharge add-ons?"
+```
+
+Useful options:
+
+```bash
+uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --debug
+uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --json
+uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --show-content
+```
+
+Run the retrieval eval:
+
+```bash
+uv run python scripts/run_retrieval_eval.py
+```
+
+The eval creates `data/evaluation/golden_queries_v1.jsonl` if it does not exist and writes `data/evaluation/retrieval_eval_results_v1.csv`.
+
+Success criteria:
+
+- Correct category appears in the top 5 where a category is expected.
+- Expected answer tokens appear in the top 5.
+- Citation URL is present and matches expected source hints where provided.
+- Out-of-scope queries are rejected by the router.
+
 ## Next Implementation Phases
 
-- Hybrid retrieval with reciprocal rank fusion.
-- Multi-query generation.
 - Reranking integration.
 - Answer generation with citations.
 - Streamlit chat UI.

@@ -1,0 +1,10 @@
+{"query": "كود معرفة الرصيد كام؟", "expected_category": "services", "expected_contains_any": ["550", "*550", "#550"], "expected_citation_contains": "balance"}
+{"query": "ازاي أعرف رصيدي؟", "expected_category": "services", "expected_contains_any": ["550", "رصيد", "balance"], "expected_citation_contains": "balance"}
+{"query": "What is the SIM swap cost?", "expected_category": "faq", "expected_contains_any": ["5", "LE", "SIM"], "expected_citation_contains": "faq"}
+{"query": "What is the yearly fee for WE Space Mega 3000 GB?", "expected_category": "we_home", "expected_contains_any": ["6490", "6,490", "3,000 GB", "3000 GB", "70 Mbps"], "expected_citation_contains": "we-space"}
+{"query": "What are WE Space recharge add-ons?", "expected_category": "we_home", "expected_contains_any": ["20 GB", "50 GB", "100 GB", "60 EGP", "120 EGP", "190 EGP"], "expected_citation_contains": "we-space"}
+{"query": "سعر راوتر TP-Link كام؟", "expected_category": "devices", "expected_contains_any": ["TP", "Link", "EGP", "جنيه"], "expected_citation_contains": "devices"}
+{"query": "What is the customer service number?", "expected_category": null, "expected_contains_any": ["111"], "expected_citation_contains": null}
+{"query": "What is WE Air prepaid?", "expected_category": "we_home", "expected_contains_any": ["WE Air", "290", "GB"], "expected_citation_contains": "we-air"}
+{"query": "ما هي مواعيد سداد فاتورة الخط الأرضي؟", "expected_category": "faq", "expected_contains_any": ["20", "21", "25"], "expected_citation_contains": "fixed-voice"}
+{"query": "Compare Vodafone and WE prices", "expected_route": "rejection"}
