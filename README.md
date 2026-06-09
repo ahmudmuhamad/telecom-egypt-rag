@@ -233,17 +233,75 @@ LLM-based routing may be added later after the rule-based baseline is validated.
 More Telecom Egypt website data can be added later through:
 
 - A new processed JSONL category file.
+- A new entry in `config/kb_sources.yaml`.
 - The unified KB builder.
 - Re-indexing or incremental Qdrant upsert.
 - BM25 rebuild or incremental update.
 - Evaluation regression tests.
 
+## Knowledge Base and Indexing Workflow
+
+Build the unified official KB:
+
+```bash
+uv run python scripts/build_unified_kb.py
+```
+
+Build chunks:
+
+```bash
+uv run python scripts/build_chunks.py
+```
+
+Start infrastructure:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Pull the embedding model if needed:
+
+```bash
+docker exec -it telecom_ollama ollama pull qwen3-embedding:4b
+```
+
+Build the Qdrant dense vector index:
+
+```bash
+uv run python scripts/build_qdrant_index.py
+```
+
+Build the BM25 keyword index:
+
+```bash
+uv run python scripts/build_bm25_index.py
+```
+
+Qdrant stores dense vectors generated from chunk `index_text` using `qwen3-embedding:4b`. BM25 stores a keyword index over the same `index_text`. Future retrieval will combine Qdrant and BM25 results with reciprocal rank fusion. `content` remains the display and answer-generation text, while citations come from `citation_url`.
+
+More website data can be added without changing the RAG architecture:
+
+1. Add a processed file such as `data/processed/mobile/mobile_post_processed.jsonl`.
+2. Add a YAML source entry:
+
+```yaml
+- category: mobile
+  path: data/processed/mobile/mobile_post_processed.jsonl
+  enabled: true
+  description: Mobile bundles, add-ons, and offers
+```
+
+3. Rebuild:
+
+```bash
+uv run python scripts/build_unified_kb.py
+uv run python scripts/build_chunks.py
+uv run python scripts/build_qdrant_index.py
+uv run python scripts/build_bm25_index.py
+```
+
 ## Next Implementation Phases
 
-- Unified KB builder.
-- Chunking and schema normalization.
-- Qdrant dense indexing.
-- BM25 sparse indexing.
 - Hybrid retrieval with reciprocal rank fusion.
 - Multi-query generation.
 - Reranking integration.

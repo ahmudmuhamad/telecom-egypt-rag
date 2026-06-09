@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover
 from config.settings import settings
 from src.ingestion.load_official_kb import (
     build_unified_kb,
-    get_default_source_configs,
+    get_source_configs,
     resolve_project_path,
 )
 
@@ -78,6 +78,12 @@ def parse_args() -> argparse.Namespace:
         "--include-disabled",
         action="store_true",
         help="Include source configs marked enabled=False.",
+    )
+    parser.add_argument(
+        "--sources-config",
+        type=Path,
+        default=Path("config/kb_sources.yaml"),
+        help="YAML file listing processed JSONL source files.",
     )
     return parser.parse_args()
 
@@ -144,7 +150,7 @@ def main() -> None:
     args = parse_args()
     settings.ensure_directories()
 
-    source_configs = get_default_source_configs()
+    source_configs = get_source_configs(args.sources_config)
     if args.include_disabled:
         source_configs = [config.model_copy(update={"enabled": True}) for config in source_configs]
     else:

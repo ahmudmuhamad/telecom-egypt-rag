@@ -1,1 +1,1 @@
-\n
+"""Index building utilities."""

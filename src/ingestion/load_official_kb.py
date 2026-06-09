@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 from config.settings import ROOT_DIR, settings
 from src.ingestion.schemas import (
     KBManifest,
@@ -506,6 +508,30 @@ def get_default_source_configs() -> list[KBSourceFileConfig]:
         #     path=Path("data/processed/mobile/mobile_post_processed.jsonl"),
         # ),
     ]
+
+
+def load_source_configs_from_yaml(path: Path) -> list[KBSourceFileConfig]:
+    config_path = resolve_project_path(path)
+    with config_path.open("r", encoding="utf-8") as file:
+        data = yaml.safe_load(file) or {}
+
+    sources = data.get("sources")
+    if not isinstance(sources, list):
+        raise ValueError(f"Expected 'sources' list in {config_path}.")
+
+    configs: list[KBSourceFileConfig] = []
+    for source in sources:
+        if not isinstance(source, dict):
+            raise ValueError(f"Invalid source entry in {config_path}: {source!r}")
+        configs.append(KBSourceFileConfig(**source))
+    return configs
+
+
+def get_source_configs(config_path: Path | None = None) -> list[KBSourceFileConfig]:
+    yaml_path = config_path or Path("config/kb_sources.yaml")
+    if resolve_project_path(yaml_path).exists():
+        return load_source_configs_from_yaml(yaml_path)
+    return get_default_source_configs()
 
 
 def make_report_row(

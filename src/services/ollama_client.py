@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any
 
 import httpx
@@ -8,18 +9,25 @@ from config.settings import settings
 
 
 class OllamaClient:
-    def __init__(self, base_url: str | None = None, timeout: float = 120.0) -> None:
+    def __init__(self, base_url: str | None = None, timeout: float = 120.0, retries: int = 2) -> None:
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
         self.timeout = timeout
+        self.retries = retries
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
-        try:
-            response = httpx.post(url, json=payload, timeout=self.timeout)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPError as exc:
-            raise RuntimeError(f"Ollama request failed for {path}: {exc}") from exc
+        last_error: Exception | None = None
+        for attempt in range(self.retries + 1):
+            try:
+                response = httpx.post(url, json=payload, timeout=self.timeout)
+                response.raise_for_status()
+                return response.json()
+            except httpx.HTTPError as exc:
+                last_error = exc
+                if attempt < self.retries:
+                    time.sleep(0.5 * (attempt + 1))
+                    continue
+        raise RuntimeError(f"Ollama request failed for {path}: {last_error}") from last_error
 
     def health_check(self) -> bool:
         try:
@@ -42,27 +50,60 @@ class OllamaClient:
     def embed(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
+        if not self.health_check():
+            raise RuntimeError(f"Ollama is unreachable at {self.base_url}.")
+        available = set(self.list_models())
+        if settings.ollama_embedding_model not in available:
+            raise RuntimeError(
+                f"Ollama embedding model '{settings.ollama_embedding_model}' is not available. "
+                "Pull it before indexing."
+            )
 
         payload = {"model": settings.ollama_embedding_model, "input": texts}
         try:
             data = self._post("/api/embed", payload)
             embeddings = data.get("embeddings")
             if isinstance(embeddings, list) and len(embeddings) == len(texts):
-                return embeddings
-        except RuntimeError:
-            pass
+                return self._validate_embeddings(embeddings, len(texts))
+        except RuntimeError as batch_error:
+            fallback_reason = batch_error
+        else:
+            fallback_reason = RuntimeError("Ollama batch embedding response was invalid.")
 
         embeddings: list[list[float]] = []
-        for text in texts:
-            data = self._post(
-                "/api/embeddings",
-                {"model": settings.ollama_embedding_model, "prompt": text},
-            )
-            embedding = data.get("embedding")
-            if not isinstance(embedding, list) or not embedding:
-                raise RuntimeError("Ollama embedding response did not contain a non-empty vector.")
-            embeddings.append(embedding)
+        try:
+            for text in texts:
+                data = self._post(
+                    "/api/embeddings",
+                    {"model": settings.ollama_embedding_model, "prompt": text},
+                )
+                embedding = data.get("embedding")
+                if not isinstance(embedding, list) or not embedding:
+                    raise RuntimeError("Ollama embedding response did not contain a non-empty vector.")
+                embeddings.append(embedding)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                f"Ollama embedding failed. Batch endpoint error: {fallback_reason}; "
+                f"single-input endpoint error: {exc}"
+            ) from exc
 
+        return self._validate_embeddings(embeddings, len(texts))
+
+    def _validate_embeddings(
+        self,
+        embeddings: list[list[float]],
+        expected_count: int,
+    ) -> list[list[float]]:
+        if len(embeddings) != expected_count:
+            raise RuntimeError(
+                f"Ollama returned {len(embeddings)} embeddings for {expected_count} texts."
+            )
+        dimensions = {len(embedding) for embedding in embeddings if isinstance(embedding, list)}
+        if len(dimensions) != 1 or not dimensions or 0 in dimensions:
+            raise RuntimeError(f"Ollama returned inconsistent embedding dimensions: {dimensions}")
+        for embedding in embeddings:
+            if not all(isinstance(value, int | float) for value in embedding):
+                raise RuntimeError("Ollama returned a non-numeric embedding value.")
         return embeddings
 
     def generate(

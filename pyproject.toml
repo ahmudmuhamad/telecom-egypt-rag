@@ -23,6 +23,7 @@ dependencies = [
     "pymupdf",
     "python-docx",
     "python-dotenv",
+    "pyyaml",
     "qdrant-client",
     "rank-bm25",
     "requests",

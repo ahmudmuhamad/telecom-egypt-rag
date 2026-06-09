@@ -1,0 +1,32 @@
+sources:
+  - category: faq
+    path: data/processed/faq/faq_post_processed.jsonl
+    enabled: true
+    description: Telecom Egypt FAQ records
+
+  - category: devices
+    path: data/processed/devices/devices_post_processed_v2.jsonl
+    enabled: true
+    description: Telecom Egypt devices and products
+
+  - category: services
+    path: data/processed/services/services_post_processed_v3.jsonl
+    enabled: true
+    description: Telecom Egypt services, codes, fees, and terms
+
+  - category: we_home
+    path: data/processed/we_home/we_home.jsonl
+    enabled: true
+    description: WE Home internet, landline, WE Air, WE Space, WE Sonic, and WE Life records
+
+# Future website sections can be added like this:
+#
+# - category: mobile
+#   path: data/processed/mobile/mobile_post_processed.jsonl
+#   enabled: true
+#   description: Mobile bundles, add-ons, and offers
+#
+# - category: business
+#   path: data/processed/business/business_post_processed.jsonl
+#   enabled: true
+#   description: Business services and enterprise products
