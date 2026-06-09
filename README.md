@@ -340,9 +340,42 @@ Success criteria:
 - Citation URL is present and matches expected source hints where provided.
 - Out-of-scope queries are rejected by the router.
 
+## Reranking Layer
+
+Phase 5 adds an optional reranking layer after hybrid retrieval. Hybrid retrieval first collects and boosts candidate chunks, then the reranker re-scores query and candidate-text pairs before final top-K selection.
+
+The default reranker is `Qwen/Qwen3-Reranker-0.6B`, loaded through SentenceTransformers `CrossEncoder`. It is not loaded through Ollama and does not use generation-style reranking. The first run may download the model from Hugging Face. If reranking is disabled or model loading fails in non-strict mode, retrieval falls back to the boosted hybrid results.
+
+Reranking is useful when the correct chunk is retrieved but not ranked first, such as similar WE Space yearly-package rows with the same quota but different speeds and prices.
+
+Baseline without reranking:
+
+```bash
+uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?" --no-rerank
+```
+
+With reranking:
+
+```bash
+uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?" --rerank
+```
+
+Arabic reranking check:
+
+```bash
+uv run python scripts/test_retrieval.py "كود معرفة الرصيد كام؟" --rerank
+```
+
+Run baseline versus reranked eval comparison:
+
+```bash
+uv run python scripts/run_retrieval_eval.py --compare
+```
+
+Reranking can be disabled with `ENABLE_RERANKING=false` in `config/.env`. The model can be changed with `RERANKER_MODEL`; the configured fallback model is `BAAI/bge-reranker-v2-m3`. If model loading or download stalls, `RERANK_LOAD_TIMEOUT_SECONDS` bounds the attempt before falling back to hybrid retrieval.
+
 ## Next Implementation Phases
 
-- Reranking integration.
 - Answer generation with citations.
 - Streamlit chat UI.
 - Docling upload processing.

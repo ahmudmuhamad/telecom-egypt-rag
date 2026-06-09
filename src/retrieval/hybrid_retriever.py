@@ -8,14 +8,22 @@ from config.settings import settings
 from src.retrieval.bm25_retriever import BM25Retriever
 from src.retrieval.dense_retriever import DenseRetriever
 from src.retrieval.query_router import route_query
+from src.retrieval.reranker import Reranker
 from src.retrieval.result_utils import rerank_results
 
 try:
     from src.logging.rag_logger import RAGLogger
-    from src.services.metrics import RAG_QUERIES_TOTAL, RAG_RETRIEVAL_LATENCY
+    from src.services.metrics import (
+        RAG_FALLBACKS_TOTAL,
+        RAG_QUERIES_TOTAL,
+        RAG_RERANKING_LATENCY,
+        RAG_RETRIEVAL_LATENCY,
+    )
 except Exception:  # pragma: no cover
+    RAG_FALLBACKS_TOTAL = None
     RAGLogger = None
     RAG_QUERIES_TOTAL = None
+    RAG_RERANKING_LATENCY = None
     RAG_RETRIEVAL_LATENCY = None
 
 
@@ -73,9 +81,11 @@ class HybridRetriever:
         self,
         dense_retriever: DenseRetriever | None = None,
         bm25_retriever: BM25Retriever | None = None,
+        reranker: Reranker | None = None,
     ) -> None:
         self.dense = dense_retriever or DenseRetriever()
         self.bm25 = bm25_retriever or BM25Retriever()
+        self.reranker = reranker or Reranker()
         self.logger = RAGLogger() if RAGLogger is not None else None
 
     def retrieve(
@@ -83,6 +93,8 @@ class HybridRetriever:
         query: str,
         source_mode: str = "official",
         top_k: int | None = None,
+        enable_reranking: bool | None = None,
+        rerank_top_k: int | None = None,
         debug: bool = False,
     ) -> dict[str, Any]:
         started_at = perf_counter()
@@ -95,14 +107,23 @@ class HybridRetriever:
             "dense_results": [],
             "bm25_results": [],
             "fused_results": [],
+            "boosted_results": [],
+            "reranked_results": [],
             "final_results": [],
+            "reranking_enabled": self._reranking_enabled(enable_reranking),
+            "reranking_used": False,
+            "reranking_error": None,
             "debug": {},
         }
         if route["route"] != "retrieval":
             self._log_retrieval(query, response, perf_counter() - started_at)
             return response
 
-        dense_top_k, bm25_top_k, final_top_k = self._top_k_from_route(route, top_k)
+        dense_top_k, bm25_top_k, candidate_top_k, final_top_k = self._top_k_from_route(
+            route,
+            top_k,
+            rerank_top_k,
+        )
         filters = route.get("metadata_filters") or {}
         dense_results = self.dense.search(query, top_k=dense_top_k, filters=filters)
         bm25_results = self.bm25.search(query, top_k=bm25_top_k, filters=filters)
@@ -114,13 +135,57 @@ class HybridRetriever:
 
         fused_results = self.rrf_fusion(dense_results, bm25_results, k=settings.rrf_k)
         boosted_results = self.apply_metadata_boosts(query, fused_results)
-        final_results = rerank_results(boosted_results[:final_top_k])
+        candidates = boosted_results[:candidate_top_k]
+        reranked_results: list[dict[str, Any]] = []
+        final_results: list[dict[str, Any]]
+        if response["reranking_enabled"]:
+            rerank_started_at = perf_counter()
+            original_enabled = self.reranker.enabled
+            try:
+                if self.reranker.last_error and self.reranker.model is None and not self.reranker.enabled:
+                    response["reranking_error"] = self.reranker.last_error
+                    self._record_fallback("reranker_unavailable")
+                    final_results = self._mark_unreranked(boosted_results[:final_top_k])
+                    reranked_results = []
+                else:
+                    self.reranker.enabled = True
+                    reranked_results = self.reranker.rerank(query, candidates, top_k=final_top_k)
+                    final_results = reranked_results
+                response["reranking_used"] = bool(
+                    reranked_results
+                    and any(result.get("reranker_score") is not None for result in reranked_results)
+                )
+                if response["reranking_used"]:
+                    final_results = reranked_results
+                else:
+                    response["reranking_error"] = response["reranking_error"] or self.reranker.last_error
+                    if response["reranking_error"]:
+                        self._record_fallback("reranker_unavailable")
+                    final_results = self._mark_unreranked(boosted_results[:final_top_k])
+                    reranked_results = []
+            except Exception as exc:
+                if self.reranker.strict_mode:
+                    raise
+                response["reranking_error"] = str(exc)
+                self._record_fallback("reranker_error")
+                final_results = self._mark_unreranked(boosted_results[:final_top_k])
+            finally:
+                if (
+                    enable_reranking is not None
+                    and not (self.reranker.last_error and self.reranker.model is None)
+                ):
+                    self.reranker.enabled = original_enabled
+                self._record_reranking_latency(perf_counter() - rerank_started_at)
+        else:
+            final_results = self._mark_unreranked(boosted_results[:final_top_k])
 
         response.update(
             {
                 "dense_results": dense_results,
                 "bm25_results": bm25_results,
                 "fused_results": fused_results,
+                "boosted_results": boosted_results,
+                "reranked_results": reranked_results,
                 "final_results": final_results,
             }
         )
@@ -129,9 +194,15 @@ class HybridRetriever:
                 {
                     "dense_top_k": dense_top_k,
                     "bm25_top_k": bm25_top_k,
+                    "rerank_top_k": candidate_top_k,
                     "final_top_k": final_top_k,
                     "rrf_k": settings.rrf_k,
                     "metadata_filters": filters,
+                    "reranker_model": self.reranker.loaded_model_name or self.reranker.model_name,
+                    "reranker_device": self.reranker.device,
+                    "reranking_enabled": response["reranking_enabled"],
+                    "reranking_used": response["reranking_used"],
+                    "reranking_error": response["reranking_error"],
                     "elapsed_seconds": perf_counter() - started_at,
                 }
             )
@@ -264,14 +335,19 @@ class HybridRetriever:
         self,
         route: dict[str, Any],
         top_k: int | None,
-    ) -> tuple[int, int, int]:
+        rerank_top_k: int | None,
+    ) -> tuple[int, int, int, int]:
         decision = route.get("complexity_decision") or {}
         dense_top_k = int(decision.get("dense_top_k") or settings.dense_top_k)
         bm25_top_k = int(decision.get("bm25_top_k") or settings.bm25_top_k)
+        candidate_top_k = int(decision.get("rerank_top_k") or settings.rerank_top_k)
         final_top_k = int(decision.get("final_top_k") or settings.final_top_k)
+        if rerank_top_k is not None:
+            candidate_top_k = rerank_top_k
         if top_k is not None:
             final_top_k = top_k
-        return dense_top_k, bm25_top_k, final_top_k
+        candidate_top_k = max(candidate_top_k, final_top_k)
+        return dense_top_k, bm25_top_k, candidate_top_k, final_top_k
 
     def _language_boost(self, normalized_query: str, result: dict[str, Any]) -> float:
         has_arabic = bool(re.search(r"[\u0600-\u06FF]", normalized_query))
@@ -295,6 +371,34 @@ class HybridRetriever:
         except Exception:
             pass
 
+    def _reranking_enabled(self, override: bool | None) -> bool:
+        return self.reranker.is_enabled() if override is None else bool(override)
+
+    def _record_reranking_latency(self, elapsed_seconds: float) -> None:
+        if RAG_RERANKING_LATENCY is None:
+            return
+        try:
+            RAG_RERANKING_LATENCY.observe(elapsed_seconds)
+        except Exception:
+            pass
+
+    def _record_fallback(self, reason: str) -> None:
+        if RAG_FALLBACKS_TOTAL is None:
+            return
+        try:
+            RAG_FALLBACKS_TOTAL.labels(reason=reason).inc()
+        except Exception:
+            pass
+
+    def _mark_unreranked(self, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        output = rerank_results([dict(result) for result in results])
+        for result in output:
+            result.setdefault("reranker_score", None)
+            result.setdefault("pre_rerank_rank", result.get("rank"))
+            result.setdefault("pre_rerank_score", result.get("final_score"))
+            result.setdefault("reranker_model", None)
+        return output
+
     def _log_retrieval(
         self,
         query: str,
@@ -314,6 +418,10 @@ class HybridRetriever:
                     "query": query,
                     "route": response["route"].get("route"),
                     "source_mode": response["route"].get("source_mode"),
+                    "reranking_used": response.get("reranking_used"),
+                    "reranking_error": response.get("reranking_error"),
+                    "reranker_model": self.reranker.loaded_model_name or self.reranker.model_name,
+                    "candidate_count": len(response.get("boosted_results") or []),
                     "final_count": len(response.get("final_results") or []),
                     "elapsed_seconds": elapsed_seconds,
                 }

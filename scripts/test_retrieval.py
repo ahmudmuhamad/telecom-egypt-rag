@@ -21,6 +21,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--source-mode", default="official", help="official, uploads, or both.")
     parser.add_argument("--debug", action="store_true", help="Include debug details.")
     parser.add_argument("--show-content", action="store_true", help="Print full chunk content.")
+    parser.add_argument("--no-rerank", action="store_true", help="Disable reranking for this run.")
+    parser.add_argument("--rerank", action="store_true", help="Force reranking for this run.")
+    parser.add_argument("--rerank-top-k", type=int, default=None, help="Override reranking candidate count.")
+    parser.add_argument(
+        "--show-reranker-text",
+        action="store_true",
+        help="Print candidate text used by the reranker.",
+    )
     parser.add_argument("--json", action="store_true", help="Output raw JSON.")
     return parser.parse_args()
 
@@ -32,11 +40,21 @@ def main() -> None:
         pass
 
     args = parse_args()
+    if args.no_rerank and args.rerank:
+        raise SystemExit("Use either --rerank or --no-rerank, not both.")
+    enable_reranking = None
+    if args.no_rerank:
+        enable_reranking = False
+    elif args.rerank:
+        enable_reranking = True
+
     retriever = HybridRetriever()
     result = retriever.retrieve(
         args.query,
         source_mode=args.source_mode,
         top_k=args.top_k,
+        enable_reranking=enable_reranking,
+        rerank_top_k=args.rerank_top_k,
         debug=args.debug,
     )
 
@@ -51,13 +69,23 @@ def main() -> None:
 
     print(f"Dense count: {len(result['dense_results'])}")
     print(f"BM25 count: {len(result['bm25_results'])}")
+    print(f"Boosted count: {len(result.get('boosted_results') or [])}")
+    print(f"Reranked count: {len(result.get('reranked_results') or [])}")
     print(f"Final count: {len(result['final_results'])}")
+    print(f"Reranking enabled: {str(result.get('reranking_enabled')).lower()}")
+    print(f"Reranking used: {str(result.get('reranking_used')).lower()}")
+    if result.get("reranking_error"):
+        print(f"Reranking error: {result['reranking_error']}")
     if args.debug and result.get("debug"):
         print(f"Debug: {json.dumps(result['debug'], ensure_ascii=False)}")
     print("")
 
     for item in result["final_results"]:
-        print_result(item, show_content=args.show_content)
+        print_result(
+            item,
+            show_content=args.show_content,
+            show_reranker_text=args.show_reranker_text,
+        )
 
 
 def print_route(route: dict[str, Any]) -> None:
@@ -72,17 +100,24 @@ def print_route(route: dict[str, Any]) -> None:
         "Complexity/pipeline: "
         f"{decision.get('complexity')} / {decision.get('pipeline_mode')} "
         f"(dense={decision.get('dense_top_k')}, bm25={decision.get('bm25_top_k')}, "
-        f"final={decision.get('final_top_k')})"
+        f"rerank={decision.get('rerank_top_k')}, final={decision.get('final_top_k')})"
     )
 
 
-def print_result(result: dict[str, Any], show_content: bool = False) -> None:
+def print_result(
+    result: dict[str, Any],
+    show_content: bool = False,
+    show_reranker_text: bool = False,
+) -> None:
     print(f"Rank {result.get('rank')}")
+    print(f"Pre-rerank rank: {result.get('pre_rerank_rank')}")
     print(f"Title: {result.get('title')}")
     print(f"Category: {result.get('category')}")
     print(f"Record type: {result.get('record_type')}")
     print(f"Language: {result.get('language')}")
     print(f"Final score: {float(result.get('final_score') or 0.0):.6f}")
+    print(f"Reranker score: {format_optional_score(result.get('reranker_score'))}")
+    print(f"Pre-rerank score: {format_optional_score(result.get('pre_rerank_score'))}")
     print(f"RRF score: {float(result.get('rrf_score') or 0.0):.6f}")
     print(f"Boost score: {float(result.get('boost_score') or 0.0):.6f}")
     print(f"Dense score: {format_optional_score(result.get('dense_score'))}")
@@ -92,6 +127,9 @@ def print_result(result: dict[str, Any], show_content: bool = False) -> None:
     if show_content:
         print("Content:")
         print(result.get("content") or "")
+    if show_reranker_text and result.get("reranker_text"):
+        print("Reranker text:")
+        print(result["reranker_text"])
     print("")
 
 

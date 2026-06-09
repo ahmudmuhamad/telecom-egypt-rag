@@ -67,6 +67,13 @@ class Settings(BaseSettings):
 
     enable_reranking: bool = True
     reranker_model: str = "Qwen/Qwen3-Reranker-0.6B"
+    reranker_fallback_model: str = "BAAI/bge-reranker-v2-m3"
+    rerank_top_k: int = 30
+    rerank_batch_size: int = 4
+    rerank_max_length: int = 1024
+    rerank_device: str = "auto"
+    rerank_strict_mode: bool = False
+    rerank_load_timeout_seconds: int = 60
 
     enable_multi_query: bool = True
     multi_query_max_variants: int = 6
