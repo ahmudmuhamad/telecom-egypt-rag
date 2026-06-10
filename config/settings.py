@@ -17,11 +17,26 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://localhost:11434"
     ollama_embedding_model: str = "qwen3-embedding:4b"
+    ollama_timeout_seconds: int = 600
+    ollama_generation_num_predict: int = 256
 
     small_generation_model: str = "qwen3.5:0.8b"
     medium_generation_model: str = "qwen3.5:2b"
     large_generation_model: str = "qwen3:4b"
     default_generation_model: str = "qwen3.5:2b"
+    enable_generation: bool = True
+    generation_temperature: float = 0.0
+    generation_max_context_sources: int = 5
+    generation_max_context_chars: int = 6000
+    generation_require_citations: bool = True
+    generation_strict_grounding: bool = True
+    generation_enable_model_fallback: bool = True
+    generation_max_retries: int = 2
+    context_snippet_max_chars: int = 1200
+    context_compression_enabled: bool = True
+    context_compression_mode: str = "deterministic"
+    min_sources_for_answer: int = 1
+    allow_no_source_answer: bool = False
 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "telecom_all_sources_v1"

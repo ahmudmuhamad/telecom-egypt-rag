@@ -1,1 +1,1 @@
-\n
+"""Answer generation package."""

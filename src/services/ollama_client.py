@@ -9,9 +9,9 @@ from config.settings import settings
 
 
 class OllamaClient:
-    def __init__(self, base_url: str | None = None, timeout: float = 120.0, retries: int = 2) -> None:
+    def __init__(self, base_url: str | None = None, timeout: float | None = None, retries: int = 2) -> None:
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
-        self.timeout = timeout
+        self.timeout = timeout if timeout is not None else settings.ollama_timeout_seconds
         self.retries = retries
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
@@ -31,7 +31,7 @@ class OllamaClient:
 
     def health_check(self) -> bool:
         try:
-            response = httpx.get(f"{self.base_url}/api/tags", timeout=10.0)
+            response = httpx.get(f"{self.base_url}/api/tags", timeout=self.timeout)
             response.raise_for_status()
             return True
         except httpx.HTTPError:
@@ -39,7 +39,7 @@ class OllamaClient:
 
     def list_models(self) -> list[str]:
         try:
-            response = httpx.get(f"{self.base_url}/api/tags", timeout=10.0)
+            response = httpx.get(f"{self.base_url}/api/tags", timeout=self.timeout)
             response.raise_for_status()
             data = response.json()
         except httpx.HTTPError as exc:
@@ -119,16 +119,40 @@ class OllamaClient:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
 
-        data = self._post(
-            "/api/chat",
-            {
-                "model": selected_model,
-                "messages": messages,
-                "stream": False,
-                "options": {"temperature": temperature},
-            },
-        )
-        content = data.get("message", {}).get("content")
+        try:
+            data = self._post(
+                "/api/chat",
+                {
+                    "model": selected_model,
+                    "messages": messages,
+                    "stream": False,
+                    "options": {
+                        "temperature": temperature,
+                        "num_predict": settings.ollama_generation_num_predict,
+                    },
+                },
+            )
+            content = data.get("message", {}).get("content")
+        except RuntimeError as chat_error:
+            prompt_parts = []
+            if system:
+                prompt_parts.append(f"System:\n{system}")
+            prompt_parts.append(f"User:\n{prompt}")
+            data = self._post(
+                "/api/generate",
+                {
+                    "model": selected_model,
+                    "prompt": "\n\n".join(prompt_parts),
+                    "stream": False,
+                    "options": {
+                        "temperature": temperature,
+                        "num_predict": settings.ollama_generation_num_predict,
+                    },
+                },
+            )
+            content = data.get("response")
+            if not isinstance(content, str):
+                raise chat_error
         if not isinstance(content, str):
             raise RuntimeError("Ollama chat response did not contain message.content.")
         return content.strip()

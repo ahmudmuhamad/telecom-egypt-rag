@@ -374,9 +374,46 @@ uv run python scripts/run_retrieval_eval.py --compare
 
 Reranking can be disabled with `ENABLE_RERANKING=false` in `config/.env`. The model can be changed with `RERANKER_MODEL`; the configured fallback model is `BAAI/bge-reranker-v2-m3`. If model loading or download stalls, `RERANK_LOAD_TIMEOUT_SECONDS` bounds the attempt before falling back to hybrid retrieval.
 
+## Answer Generation with Citations
+
+Phase 6 adds terminal-only RAG answer generation. Retrieval provides ranked sources, the answer generator assembles numbered context, and a local Ollama generation model produces an answer grounded in those sources.
+
+Every factual claim should cite numbered source markers such as `[1]` or `[2]`. The source list is appended after the answer. If the available official sources are insufficient, the system should say that the information was not found. If the model output lacks valid citations or generation fails, the system retries with a stronger configured Ollama model when enabled, then falls back to a deterministic grounded answer from the top source.
+
+Run generation checks:
+
+```bash
+uv run python scripts/test_generation.py "كود معرفة الرصيد كام؟"
+uv run python scripts/test_generation.py "ازاي أعرف رصيدي؟"
+uv run python scripts/test_generation.py "What is the SIM swap cost?"
+uv run python scripts/test_generation.py "What are WE Space recharge add-ons?"
+uv run python scripts/test_generation.py "What is the yearly fee for WE Space Mega 3000 GB?"
+uv run python scripts/test_generation.py "Compare Vodafone and WE prices"
+```
+
+Useful options:
+
+```bash
+uv run python scripts/test_generation.py "What is the SIM swap cost?" --show-sources
+uv run python scripts/test_generation.py "What is the SIM swap cost?" --show-retrieval
+uv run python scripts/test_generation.py "What is the SIM swap cost?" --json
+uv run python scripts/test_generation.py "What is the SIM swap cost?" --no-rerank
+```
+
+Run generation eval:
+
+```bash
+uv run python scripts/run_generation_eval.py
+```
+
+Known issue: some WE Home yearly package metadata needs a future post-processing cleanup. The full pipeline is being completed first, then the website data and WE Home records will be cleaned and re-indexed.
+
+## Troubleshooting
+
+If answer generation reaches Ollama but times out, increase `OLLAMA_TIMEOUT_SECONDS` in `config/.env`. You can also reduce `GENERATION_MAX_CONTEXT_SOURCES` or `GENERATION_MAX_CONTEXT_CHARS` to send a smaller prompt. To shorten model output, lower `OLLAMA_GENERATION_NUM_PREDICT`.
+
 ## Next Implementation Phases
 
-- Answer generation with citations.
 - Streamlit chat UI.
 - Docling upload processing.
 - Evaluation and regression checks.
