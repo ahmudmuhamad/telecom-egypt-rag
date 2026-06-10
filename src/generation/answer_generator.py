@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from time import perf_counter
 from typing import Any
 
@@ -14,7 +15,11 @@ from src.generation.prompt_templates import (
     detect_response_language,
 )
 from src.retrieval.hybrid_retriever import HybridRetriever
-from src.retrieval.source_formatter import format_results_for_generation, make_snippet
+from src.retrieval.source_formatter import (
+    clean_user_visible_text,
+    format_results_for_generation,
+    make_snippet,
+)
 from src.services.ollama_client import OllamaClient
 
 try:
@@ -85,22 +90,16 @@ class AnswerGenerator:
 
         if route_type == "clarification":
             self._record_fallback("route_clarification")
-            answer = build_clarification_response(route, language)
-            return self._finalize(base_response, answer, [])
+            return self._finalize(base_response, build_clarification_response(route, language), [])
         if route_type == "rejection":
             self._record_fallback("route_rejection")
-            answer = build_rejection_response(route, language)
-            return self._finalize(base_response, answer, [])
+            return self._finalize(base_response, build_rejection_response(route, language), [])
 
         final_results = retrieval.get("final_results") or []
         if len(final_results) < settings.min_sources_for_answer and not settings.allow_no_source_answer:
             self._record_fallback("no_sources")
             answer = build_no_source_answer(query, language)
-            base_response["validation"] = validate_answer_grounding(
-                answer,
-                [],
-                require_citations=False,
-            )
+            base_response["validation"] = validate_answer_grounding(answer, [], require_citations=False)
             return self._finalize(base_response, answer, [])
 
         sources = format_results_for_generation(
@@ -206,11 +205,98 @@ class AnswerGenerator:
     ) -> str:
         if not sources:
             return build_no_source_answer(query, language)
+
         source = sources[0]
-        snippet = make_snippet(source.get("content") or source.get("snippet") or "", max_chars=700)
-        if language in {"ar", "mixed"}:
-            return f"وفقًا للمصدر الرسمي المسترجع، المعلومة ذات الصلة هي: {snippet} [{source['source_id']}]"
-        return f"Based on the retrieved official source, the relevant information is: {snippet} [{source['source_id']}]"
+        source_id = source["source_id"]
+        metadata = source.get("metadata") or {}
+        content = source.get("content") or source.get("snippet") or ""
+        clean_content = clean_user_visible_text(str(metadata.get("answer") or content))
+        code = self._extract_ussd_code(metadata, content)
+        fee = self._extract_fee(metadata, content)
+        price = self._extract_price(metadata, content)
+        quota = self._extract_quota(metadata, content)
+        speed = self._extract_speed(metadata, content)
+        package_name = metadata.get("package_name") or source.get("title")
+        is_arabic = language in {"ar", "mixed"}
+
+        if self._is_service_code_query(query, content) and code:
+            if is_arabic:
+                answer = f"كود معرفة الرصيد هو {code}"
+                if fee:
+                    answer += f"، ورسوم الخدمة {fee}"
+                return f"{answer}. [{source_id}]"
+            answer = f"You can check your balance by dialing {code}"
+            if fee:
+                answer += f". The service fee is {fee}"
+            return f"{answer}. [{source_id}]"
+
+        faq_answer = clean_user_visible_text(str(metadata.get("answer") or ""))
+        if faq_answer:
+            return f"{make_snippet(faq_answer, max_chars=320)} [{source_id}]"
+
+        if package_name and any(value for value in (price, quota, speed)):
+            details: list[str] = []
+            if quota:
+                details.append(f"السعة {quota}" if is_arabic else f"quota {quota}")
+            if speed:
+                details.append(f"السرعة {speed}" if is_arabic else f"speed {speed}")
+            if price:
+                details.append(f"السعر {price}" if is_arabic else f"price {price}")
+            return f"{package_name}: " + "، ".join(details) + f". [{source_id}]"
+
+        snippet = make_snippet(clean_content, max_chars=420)
+        if is_arabic:
+            return f"المعلومة المتاحة من المصدر الرسمي هي: {snippet}. [{source_id}]"
+        return f"The available official source says: {snippet}. [{source_id}]"
+
+    def _is_service_code_query(self, query: str, content: str) -> bool:
+        normalized = f"{query} {content}".lower()
+        return any(term in normalized for term in ("code", "balance", "كود", "رصيد"))
+
+    def _extract_ussd_code(self, metadata: dict[str, Any], content: str) -> str | None:
+        for key in ("subscription_code", "ussd_codes"):
+            value = metadata.get(key)
+            if isinstance(value, list) and value:
+                return str(value[0]).replace(" ", "")
+            if isinstance(value, str) and value.strip():
+                return value.strip().replace(" ", "")
+        matches = re.findall(r"\*\s*\d+(?:\s*\*\s*[\w\u0600-\u06FF]+)*\s*#?", content or "")
+        if matches:
+            return re.sub(r"\s+", "", matches[0])
+        return None
+
+    def _extract_fee(self, metadata: dict[str, Any], content: str) -> str | None:
+        for key in ("fee", "fees", "service_fee"):
+            value = metadata.get(key)
+            if value:
+                return clean_user_visible_text(str(value))
+        match = re.search(r"\d[\d,]*(?:\.\d+)?\s*(?:قروش|قرش|pt|PT|p\.?t\.?)", content or "")
+        return match.group(0) if match else None
+
+    def _extract_price(self, metadata: dict[str, Any], content: str) -> str | None:
+        for key in ("price", "price_egp", "monthly_fee", "monthly_fee_egp", "yearly_fee", "yearly_fee_egp"):
+            value = metadata.get(key)
+            if value:
+                if isinstance(value, int | float):
+                    return f"{value:g} EGP"
+                return clean_user_visible_text(str(value))
+        match = re.search(r"\d[\d,]*(?:\.\d+)?\s*(?:EGP|LE|جنيه)", content or "", flags=re.IGNORECASE)
+        return match.group(0) if match else None
+
+    def _extract_quota(self, metadata: dict[str, Any], content: str) -> str | None:
+        for key in ("quota", "quota_gb"):
+            value = metadata.get(key)
+            if value:
+                return f"{value} GB" if key == "quota_gb" and str(value).isdigit() else str(value)
+        match = re.search(r"\d[\d,]*(?:\.\d+)?\s*GB", content or "", flags=re.IGNORECASE)
+        return match.group(0) if match else None
+
+    def _extract_speed(self, metadata: dict[str, Any], content: str) -> str | None:
+        value = metadata.get("speed")
+        if value:
+            return str(value)
+        match = re.search(r"(?:up to\s*)?\d[\d,]*(?:\.\d+)?\s*Mbps", content or "", flags=re.IGNORECASE)
+        return match.group(0) if match else None
 
     def _generate_with_model(
         self,

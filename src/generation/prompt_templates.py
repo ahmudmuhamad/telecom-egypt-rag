@@ -89,6 +89,7 @@ def build_generation_prompt(query: str, sources: list[dict[str, Any]], language:
             "- Cite every factual statement with source markers like [1] or [2].",
             "- If the sources do not contain the answer, say the information was not found.",
             "- Do not mention scores, ranking, retrievers, or hidden metadata.",
+            "- Do not repeat source labels such as Title, Category, Record type, Language, Source, or Content in the answer.",
             "- Do not include URLs inside the answer body unless directly useful; sources will be listed after.",
             f"- Response language: {language}.",
             "Answer:",
@@ -114,6 +115,5 @@ def build_rejection_response(route: dict[str, Any], language: str) -> str:
     return "Sorry, I can only answer questions covered by the available official Telecom Egypt sources."
 
 
-# Backward-compatible names for older imports.
 SYSTEM_PROMPT = build_system_prompt("en")
 RAG_PROMPT_TEMPLATE = "Context:\n{context}\n\nQuestion: {query}\nAnswer:"

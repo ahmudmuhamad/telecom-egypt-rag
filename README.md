@@ -412,8 +412,37 @@ Known issue: some WE Home yearly package metadata needs a future post-processing
 
 If answer generation reaches Ollama but times out, increase `OLLAMA_TIMEOUT_SECONDS` in `config/.env`. You can also reduce `GENERATION_MAX_CONTEXT_SOURCES` or `GENERATION_MAX_CONTEXT_CHARS` to send a smaller prompt. To shorten model output, lower `OLLAMA_GENERATION_NUM_PREDICT`.
 
+## Streamlit End-User UI
+
+The Streamlit app is the public-facing chat UI for end users. It shows only the conversation, final answers, and citation/source cards. It hides internal pipeline details such as model names, fallback state, reranking, retrieval scores, route metadata, and debug payloads.
+
+The UI currently answers from the official Telecom Egypt knowledge base only. Uploads and document processing will be added in a later phase.
+
+Required local services:
+
+- Qdrant must be running.
+- Ollama must be running.
+- Required models should be pulled: `qwen3-embedding:4b` and `qwen3.5:0.8b`.
+
+Start infrastructure:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Run the app:
+
+```bash
+uv run streamlit run app/streamlit_app.py
+```
+
+Then open:
+
+```text
+http://localhost:8501
+```
+
 ## Next Implementation Phases
 
-- Streamlit chat UI.
 - Docling upload processing.
 - Evaluation and regression checks.

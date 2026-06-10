@@ -43,7 +43,7 @@ def format_results_for_generation(
     max_sources: int = 5,
     query: str = "",
 ) -> list[dict[str, Any]]:
-    deduped = deduplicate_sources(results)
+    deduped = deduplicate_sources(prefer_language_sources(results, query))
     sources: list[dict[str, Any]] = []
     for index, result in enumerate(deduped[:max_sources], start=1):
         source = format_source(result, source_id=index)
@@ -52,7 +52,7 @@ def format_results_for_generation(
             source,
             max_chars=settings.context_snippet_max_chars,
         )
-        source["snippet"] = make_snippet(source["content"])
+        source["snippet"] = make_snippet(clean_user_visible_text(source["content"]))
         sources.append(source)
     return sources
 
@@ -112,6 +112,8 @@ def deduplicate_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "speed",
             )
         )
+        value_signature = "|".join(_extract_value_signature(content))
+        code_signature = "|".join(_extract_codes(content))
         keys = [
             str(result.get("chunk_id") or ""),
             "|".join(
@@ -121,6 +123,24 @@ def deduplicate_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     str(result.get("category") or ""),
                 ]
             ),
+            "|".join(
+                [
+                    str(result.get("citation_url") or ""),
+                    str(result.get("category") or ""),
+                    value_signature,
+                ]
+            )
+            if value_signature
+            else "",
+            "|".join(
+                [
+                    str(result.get("citation_url") or ""),
+                    str(result.get("category") or ""),
+                    code_signature,
+                ]
+            )
+            if code_signature
+            else "",
             "|".join(
                 [
                     str(result.get("citation_url") or ""),
@@ -144,6 +164,55 @@ def deduplicate_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return deduped
 
 
+def prefer_language_sources(results: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    preferred = _preferred_language(query)
+    if preferred is None:
+        return results
+    return sorted(
+        results,
+        key=lambda result: 0 if str(result.get("language") or "").lower() == preferred else 1,
+    )
+
+
+def clean_user_visible_text(text: str) -> str:
+    cleaned_lines: list[str] = []
+    skip_prefixes = (
+        "title:",
+        "category:",
+        "record type:",
+        "language:",
+        "source:",
+        "content:",
+        "metadata:",
+        "source type:",
+        "source_name:",
+        "retriever:",
+    )
+    for raw_line in re.split(r"[\r\n]+", text or ""):
+        line = raw_line.strip()
+        if not line:
+            continue
+        lowered = line.lower()
+        if lowered in {"service_detail", "eligibility", "service_fee", "subscription_method"}:
+            continue
+        if any(lowered.startswith(prefix) for prefix in skip_prefixes):
+            continue
+        line = re.sub(r"^\*\s+(\*\d[^ ]*#?)", r"\1", line)
+        line = re.sub(r"\s+", " ", line).strip()
+        if line:
+            cleaned_lines.append(line)
+    cleaned = " ".join(cleaned_lines)
+    cleaned = re.sub(
+        r"\b(?:Title|Category|Record type|Language|Source|Content|Metadata|Source type)\s*:\s*",
+        "",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\b(service_detail|eligibility|service_fee|subscription_method)\b", "", cleaned)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip(" -")
+    return cleaned
+
+
 def normalize_for_key(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").lower().strip())
 
@@ -152,6 +221,33 @@ def _query_keywords(query: str) -> list[str]:
     tokens = re.findall(r"\*?\#?\w[\w#*,-]*|[\u0600-\u06FF]+", (query or "").lower())
     stopwords = {"what", "is", "the", "for", "and", "are", "how", "can", "i", "a", "an"}
     return [token for token in tokens if len(token) > 1 and token not in stopwords]
+
+
+def _preferred_language(query: str) -> str | None:
+    if re.search(r"[\u0600-\u06FF]", query or ""):
+        return "ar"
+    if re.search(r"[A-Za-z]", query or ""):
+        return "en"
+    return None
+
+
+def _extract_value_signature(text: str) -> list[str]:
+    values = _extract_codes(text)
+    values.extend(
+        re.findall(
+            r"\d[\d,]*(?:\.\d+)?\s*(?:egp|le|pt|gb|mbps|جنيه|قرش|قروش)",
+            text or "",
+            flags=re.IGNORECASE,
+        )
+    )
+    return values
+
+
+def _extract_codes(text: str) -> list[str]:
+    codes = re.findall(r"\*\s*\d+(?:\s*\*\s*[\w\u0600-\u06FF]+)*\s*#?", text or "")
+    normalized = {re.sub(r"\s+", "", code) for code in codes}
+    normalized = {code for code in normalized if code.endswith("#")}
+    return sorted(normalized)
 
 
 def format_sources(retrieved_docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
