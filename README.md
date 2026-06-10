@@ -322,6 +322,87 @@ telecom-egypt-rag/
 
 ---
 
+## Prerequisites
+
+Before running the project, make sure you have the following installed:
+
+| Requirement            | Purpose                                                           |
+| ---------------------- | ----------------------------------------------------------------- |
+| Git                    | Clone the repository                                              |
+| Docker Desktop         | Run Qdrant, Ollama, Prometheus, Grafana, and optionally Streamlit |
+| Python 3.11+           | Run the local Streamlit/RAG app                                   |
+| uv                     | Python dependency and virtual environment management              |
+| Ollama                 | Local model runtime, used inside Docker                           |
+| Recommended RAM        | 16 GB+                                                            |
+| Recommended Disk Space | 10 GB+ free space for Docker images, models, and indexes          |
+
+> The project can run fully locally/on-premise. No external LLM API is required.
+
+---
+
+## Clone the Repository
+
+Clone the project from GitHub:
+
+```bash
+git clone https://github.com/ahmudmuhamad/telecom-egypt-rag
+cd telecom-egypt-rag
+```
+
+---
+
+## Install uv
+
+If `uv` is not installed, install it first.
+
+On Windows PowerShell:
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+On macOS/Linux:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then verify:
+
+```bash
+uv --version
+```
+
+---
+
+## Setup Environment Variables
+
+Copy the example environment file:
+
+```bash
+cp config/.env.example .env
+```
+
+On Windows PowerShell:
+
+```powershell
+Copy-Item config\.env.example .env
+```
+
+For the recommended local Streamlit mode, keep:
+
+```env
+QDRANT_URL=http://localhost:6333
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+For full Docker mode, Docker Compose overrides these internally:
+
+```env
+QDRANT_URL=http://qdrant:6333
+OLLAMA_BASE_URL=http://ollama:11434
+```
+
 ## Required Ollama Models
 
 The project uses local Ollama models.
