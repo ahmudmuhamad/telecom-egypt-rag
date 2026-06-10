@@ -8,9 +8,9 @@ The current work moves the project from Colab experimentation toward a reproduci
 
 ## Current Scope
 
-This foundation stage includes dependency management, environment settings, infrastructure configuration, local service clients, Prometheus metric definitions, JSONL logging, cost optimization scaffolding, model routing scaffolding, and reviewer/developer documentation.
+The current local implementation includes dependency management, Docker Compose infrastructure, Ollama/Qdrant clients, unified official KB building, chunking, Qdrant dense indexing, BM25 indexing, hybrid retrieval, optional reranking, grounded answer generation with citations, an end-user Streamlit chat UI, JSONL logging, and Prometheus/Grafana observability.
 
-It does not yet implement unified KB building, chunking, indexing, hybrid retrieval, reranking integration, answer generation, upload processing, evaluation, or the Streamlit chat UI flow.
+It does not yet implement uploaded document processing, Docling-powered ingestion in the UI, Redis, semantic cache, FastAPI backend serving, or a fully Dockerized Streamlit app.
 
 ## Architecture
 
@@ -194,15 +194,40 @@ uv run python -m src.retrieval.model_router
 
 Docker commands should be run manually by the developer. Application code should not pull models or start infrastructure automatically.
 
-## Monitoring with Prometheus and Grafana
+## Observability with Prometheus and Grafana
 
-Prometheus is configured to scrape:
+The local Streamlit/RAG process exposes Prometheus metrics on port `8001` by default. Prometheus runs in Docker and scrapes the local app at `host.docker.internal:8001`. Metrics are not shown to end users in the Streamlit UI.
 
-- Prometheus itself at `localhost:9090`.
-- Future RAG API metrics at `host.docker.internal:8000`.
-- Qdrant at `qdrant:6333` when metrics are available for the running Qdrant version/configuration.
+The Grafana container auto-provisions a Prometheus datasource and a dashboard named **Telecom Egypt RAG Observability**. The dashboard tracks query volume, latency, fallbacks, errors, reranking, retrieval requests, and citation quality.
 
-Grafana is available at http://localhost:3000 with `admin` / `admin`. Prometheus can be added manually as a data source now, with provisioning planned for a later phase.
+Start infrastructure:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Run the Streamlit app:
+
+```bash
+uv run streamlit run app/streamlit_app.py
+```
+
+Open services:
+
+- Streamlit: http://localhost:8501
+- Metrics endpoint: http://localhost:8001/metrics
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
+
+Default Grafana credentials are `admin` / `admin`.
+
+Useful Prometheus query:
+
+```text
+telecom_rag_queries_total
+```
+
+If port `8001` is busy, change `RAG_METRICS_PORT` in `config/.env`. On Windows, `host.docker.internal` lets Prometheus scrape the locally running Streamlit process. Linux users may need Docker host networking or an `extra_hosts` mapping for equivalent host access.
 
 ## Cost Optimization Plan
 

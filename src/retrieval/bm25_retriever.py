@@ -11,6 +11,19 @@ from src.indexing.bm25_indexer import TOKENIZER_VERSION, tokenize_for_bm25
 from src.retrieval.dense_retriever import FILTER_FIELDS
 from src.retrieval.result_utils import normalize_retrieval_result, rerank_results
 
+try:
+    from src.services.metrics import (
+        RAG_BM25_RETRIEVAL_LATENCY,
+        record_error,
+        record_retrieval,
+        track_latency,
+    )
+except Exception:  # pragma: no cover
+    RAG_BM25_RETRIEVAL_LATENCY = None
+    record_error = None
+    record_retrieval = None
+    track_latency = None
+
 
 DEFAULT_BM25_PATH = Path("data/indexes/bm25_official_kb_v1.pkl")
 DEFAULT_MANIFEST_PATH = Path("data/indexes/bm25_manifest_v1.json")
@@ -46,6 +59,22 @@ class BM25Retriever:
         top_k: int = 30,
         filters: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        try:
+            self._record_retrieval()
+            if track_latency is None or RAG_BM25_RETRIEVAL_LATENCY is None:
+                return self._search(query, top_k=top_k, filters=filters)
+            with track_latency(RAG_BM25_RETRIEVAL_LATENCY):
+                return self._search(query, top_k=top_k, filters=filters)
+        except Exception:
+            self._record_error()
+            raise
+
+    def _search(
+        self,
+        query: str,
+        top_k: int = 30,
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         tokens = self.tokenize(query)
         if not tokens:
             return []
@@ -71,6 +100,22 @@ class BM25Retriever:
                 )
             )
         return rerank_results(results)
+
+    def _record_retrieval(self) -> None:
+        if record_retrieval is None:
+            return
+        try:
+            record_retrieval("bm25")
+        except Exception:
+            pass
+
+    def _record_error(self) -> None:
+        if record_error is None:
+            return
+        try:
+            record_error("retrieval")
+        except Exception:
+            pass
 
     def tokenize(self, text: str) -> list[str]:
         return tokenize_for_bm25(text)

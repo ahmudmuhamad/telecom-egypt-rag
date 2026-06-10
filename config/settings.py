@@ -102,6 +102,10 @@ class Settings(BaseSettings):
     enable_context_compression: bool = True
 
     enable_prometheus: bool = True
+    rag_metrics_host: str = "0.0.0.0"
+    rag_metrics_port: int = 8001
+    rag_metrics_namespace: str = "telecom_rag"
+    enable_rag_jsonl_logging: bool = True
 
     rag_api_host: str = "0.0.0.0"
     rag_api_port: int = 8000
@@ -129,7 +133,7 @@ RERANKER_MODEL = settings.reranker_model
 LLM_MODEL = settings.default_generation_model
 LOG_LEVEL = "INFO"
 ENABLE_PROMETHEUS = settings.enable_prometheus
-PROMETHEUS_PORT = settings.rag_api_port
+PROMETHEUS_PORT = settings.rag_metrics_port
 DATA_DIR = settings._resolve_project_path(settings.data_dir)
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 INDEXES_DIR = settings._resolve_project_path(settings.index_dir)

@@ -14,13 +14,20 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.generation.answer_generator import AnswerGenerator  # noqa: E402
 from src.retrieval.source_formatter import clean_user_visible_text  # noqa: E402
+from src.services.metrics import (  # noqa: E402
+    RAG_ACTIVE_SESSIONS,
+    record_error,
+    start_metrics_server_once,
+)
 
 
 st.set_page_config(
     page_title="WE Intelligent Assistant",
-    page_icon="💬",
+    page_icon=":speech_balloon:",
     layout="centered",
 )
+
+start_metrics_server_once()
 
 
 def apply_styles() -> None:
@@ -112,6 +119,12 @@ def render_sources(sources: list[dict[str, Any]]) -> None:
 def ensure_messages() -> None:
     if "messages" not in st.session_state:
         st.session_state.messages = []
+    if "metrics_session_registered" not in st.session_state:
+        try:
+            RAG_ACTIVE_SESSIONS.inc()
+        except Exception:
+            pass
+        st.session_state.metrics_session_registered = True
 
 
 def render_history() -> None:
@@ -163,6 +176,10 @@ def main() -> None:
                     answer_text = "Sorry, I could not answer that right now. Please try again."
                     sources = []
             except Exception:
+                try:
+                    record_error("streamlit")
+                except Exception:
+                    pass
                 answer_text = "Sorry, I could not answer that right now. Please try again."
                 sources = []
         st.markdown(answer_text)
@@ -179,3 +196,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

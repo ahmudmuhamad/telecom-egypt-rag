@@ -24,18 +24,23 @@ class RAGLogger:
         return ROOT_DIR / path
 
     def _write_jsonl(self, filename: str, event_type: str, payload: dict[str, Any]) -> None:
+        if not settings.enable_rag_jsonl_logging:
+            return
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event_type": event_type,
             "payload": payload,
         }
-        path = self.log_dir / filename
-        if orjson is not None:
-            line = orjson.dumps(event).decode("utf-8")
-        else:
-            line = json.dumps(event, ensure_ascii=False)
-        with path.open("a", encoding="utf-8") as file:
-            file.write(line + "\n")
+        try:
+            path = self.log_dir / filename
+            if orjson is not None:
+                line = orjson.dumps(event).decode("utf-8")
+            else:
+                line = json.dumps(event, ensure_ascii=False)
+            with path.open("a", encoding="utf-8") as file:
+                file.write(line + "\n")
+        except Exception:
+            pass
 
     def log_event(self, event_type: str, payload: dict[str, Any]) -> None:
         self._write_jsonl("rag_events.jsonl", event_type, payload)

@@ -12,6 +12,19 @@ from src.retrieval.result_utils import normalize_retrieval_result, rerank_result
 from src.services.ollama_client import OllamaClient
 from src.services.qdrant_client import get_qdrant_client
 
+try:
+    from src.services.metrics import (
+        RAG_DENSE_RETRIEVAL_LATENCY,
+        record_error,
+        record_retrieval,
+        track_latency,
+    )
+except Exception:  # pragma: no cover
+    RAG_DENSE_RETRIEVAL_LATENCY = None
+    record_error = None
+    record_retrieval = None
+    track_latency = None
+
 
 FILTER_FIELDS = {
     "source_type",
@@ -48,6 +61,22 @@ class DenseRetriever:
     ) -> list[dict[str, Any]]:
         if not query.strip():
             return []
+        try:
+            self._record_retrieval()
+            if track_latency is None or RAG_DENSE_RETRIEVAL_LATENCY is None:
+                return self._search(query, top_k=top_k, filters=filters)
+            with track_latency(RAG_DENSE_RETRIEVAL_LATENCY):
+                return self._search(query, top_k=top_k, filters=filters)
+        except Exception:
+            self._record_error()
+            raise
+
+    def _search(
+        self,
+        query: str,
+        top_k: int = 30,
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
         self._ensure_collection_exists()
         query_vector = self.ollama.embed([query])[0]
         query_filter = self.build_qdrant_filter(filters)
@@ -76,6 +105,22 @@ class DenseRetriever:
             for rank, point in enumerate(points, start=1)
         ]
         return rerank_results(results)
+
+    def _record_retrieval(self) -> None:
+        if record_retrieval is None:
+            return
+        try:
+            record_retrieval("dense")
+        except Exception:
+            pass
+
+    def _record_error(self) -> None:
+        if record_error is None:
+            return
+        try:
+            record_error("retrieval")
+        except Exception:
+            pass
 
     def build_qdrant_filter(self, filters: dict[str, Any] | None) -> models.Filter | None:
         if not filters:

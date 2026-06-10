@@ -5,7 +5,11 @@ from time import perf_counter
 from typing import Any
 
 from config.settings import settings
-from src.generation.citation_parser import append_sources_section, validate_answer_grounding
+from src.generation.citation_parser import (
+    append_sources_section,
+    extract_citation_ids,
+    validate_answer_grounding,
+)
 from src.generation.prompt_templates import (
     build_clarification_response,
     build_generation_prompt,
@@ -25,17 +29,29 @@ from src.services.ollama_client import OllamaClient
 try:
     from src.logging.rag_logger import RAGLogger
     from src.services.metrics import (
-        RAG_ANSWERS_WITH_CITATIONS_TOTAL,
-        RAG_ANSWERS_WITHOUT_CITATIONS_TOTAL,
+        RAG_CONTEXT_ASSEMBLY_LATENCY,
         RAG_FALLBACKS_TOTAL,
         RAG_GENERATION_LATENCY,
+        RAG_TOTAL_LATENCY,
+        record_answer,
+        record_error,
+        record_fallback,
+        record_query,
+        set_last_query_stats,
+        track_latency,
     )
 except Exception:  # pragma: no cover
     RAGLogger = None
-    RAG_ANSWERS_WITH_CITATIONS_TOTAL = None
-    RAG_ANSWERS_WITHOUT_CITATIONS_TOTAL = None
+    RAG_CONTEXT_ASSEMBLY_LATENCY = None
     RAG_FALLBACKS_TOTAL = None
     RAG_GENERATION_LATENCY = None
+    RAG_TOTAL_LATENCY = None
+    record_answer = None
+    record_error = None
+    record_fallback = None
+    record_query = None
+    set_last_query_stats = None
+    track_latency = None
 
 
 class AnswerGenerator:
@@ -56,19 +72,50 @@ class AnswerGenerator:
         use_reranking: bool | None = None,
         debug: bool = False,
     ) -> dict[str, Any]:
+        request_started_at = perf_counter()
         language = detect_response_language(query)
-        retrieval = self.retriever.retrieve(
-            query,
-            source_mode=source_mode,
-            top_k=top_k,
-            enable_reranking=use_reranking,
-            debug=debug,
-        )
+        self._log_event("query_received", {"query": query, "source_mode": source_mode, "language": language})
+        try:
+            retrieval = self.retriever.retrieve(
+                query,
+                source_mode=source_mode,
+                top_k=top_k,
+                enable_reranking=use_reranking,
+                debug=debug,
+            )
+        except Exception as exc:
+            self._record_error("retrieval")
+            self._record_answer("error", False)
+            self._log_event(
+                "error",
+                {
+                    "query": query,
+                    "source_mode": source_mode,
+                    "language": language,
+                    "stage": "retrieval",
+                    "error": str(exc),
+                    "latency_seconds": perf_counter() - request_started_at,
+                },
+            )
+            raise
         route = retrieval.get("route") or {}
         route_type = route.get("route")
+        self._record_query(route, source_mode, language)
+        self._log_event(
+            "retrieval_completed",
+            {
+                "query": query,
+                "route": route_type,
+                "source_mode": route.get("source_mode") or source_mode,
+                "source_count": len(retrieval.get("final_results") or []),
+                "reranking_used": retrieval.get("reranking_used"),
+                "latency_seconds": retrieval.get("debug", {}).get("elapsed_seconds"),
+            },
+        )
 
         base_response = {
             "query": query,
+            "_request_started_at": request_started_at,
             "route": route,
             "language": language,
             "model_used": None,
@@ -90,23 +137,41 @@ class AnswerGenerator:
 
         if route_type == "clarification":
             self._record_fallback("route_clarification")
-            return self._finalize(base_response, build_clarification_response(route, language), [])
+            return self._finalize(
+                base_response,
+                build_clarification_response(route, language),
+                [],
+                status="clarification",
+            )
         if route_type == "rejection":
             self._record_fallback("route_rejection")
-            return self._finalize(base_response, build_rejection_response(route, language), [])
+            return self._finalize(
+                base_response,
+                build_rejection_response(route, language),
+                [],
+                status="rejected",
+            )
 
         final_results = retrieval.get("final_results") or []
         if len(final_results) < settings.min_sources_for_answer and not settings.allow_no_source_answer:
             self._record_fallback("no_sources")
             answer = build_no_source_answer(query, language)
             base_response["validation"] = validate_answer_grounding(answer, [], require_citations=False)
-            return self._finalize(base_response, answer, [])
+            return self._finalize(base_response, answer, [], status="fallback")
 
-        sources = format_results_for_generation(
-            final_results,
-            max_sources=settings.generation_max_context_sources,
-            query=query,
-        )
+        if track_latency is not None and RAG_CONTEXT_ASSEMBLY_LATENCY is not None:
+            with track_latency(RAG_CONTEXT_ASSEMBLY_LATENCY):
+                sources = format_results_for_generation(
+                    final_results,
+                    max_sources=settings.generation_max_context_sources,
+                    query=query,
+                )
+        else:
+            sources = format_results_for_generation(
+                final_results,
+                max_sources=settings.generation_max_context_sources,
+                query=query,
+            )
         if not settings.enable_generation:
             answer = self.build_conservative_answer(query, sources, language)
             base_response["fallback_used"] = True
@@ -115,7 +180,7 @@ class AnswerGenerator:
                 sources,
                 require_citations=settings.generation_require_citations,
             )
-            return self._finalize(base_response, answer, sources)
+            return self._finalize(base_response, answer, sources, status="fallback")
 
         model_name, model_tier = self.choose_generation_model(route)
         model_sequence = [(model_name, model_tier)]
@@ -144,14 +209,15 @@ class AnswerGenerator:
                             "fallback_used": attempt > 0,
                         }
                     )
-                    self._record_answer_citation_metric(validation)
-                    return self._finalize(base_response, raw_answer, sources)
+                    return self._finalize(base_response, raw_answer, sources, status="generated")
 
                 last_error = validation["reason"]
                 self._record_fallback("citation_validation_failed")
+                self._record_error("validation")
             except Exception as exc:
                 last_error = str(exc)
                 self._record_fallback("generation_error")
+                self._record_error("generation")
                 if self._is_generation_endpoint_unavailable(last_error):
                     break
 
@@ -171,8 +237,7 @@ class AnswerGenerator:
                 "error": last_error,
             }
         )
-        self._record_answer_citation_metric(validation)
-        return self._finalize(base_response, conservative_answer, sources)
+        return self._finalize(base_response, conservative_answer, sources, status="fallback")
 
     def choose_generation_model(self, route: dict[str, Any]) -> tuple[str, str]:
         decision = route.get("complexity_decision") or {}
@@ -332,11 +397,18 @@ class AnswerGenerator:
         response: dict[str, Any],
         answer: str,
         sources: list[dict[str, Any]],
+        status: str,
     ) -> dict[str, Any]:
         response["answer"] = answer
         response["sources"] = sources
         response["answer_with_sources"] = append_sources_section(answer, sources) if sources else answer
-        self._log_answer(response)
+        citation_count = len(extract_citation_ids(answer))
+        final_results_count = len((response.get("retrieval") or {}).get("final_results") or [])
+        self._record_answer(status, bool(citation_count))
+        self._record_last_query_stats(len(sources), final_results_count, citation_count)
+        self._record_total_latency(response)
+        response.pop("_request_started_at", None)
+        self._log_answer(response, status=status, citation_count=citation_count)
         return response
 
     def _compact_retrieval(self, retrieval: dict[str, Any]) -> dict[str, Any]:
@@ -357,27 +429,98 @@ class AnswerGenerator:
         except Exception:
             pass
 
-    def _record_answer_citation_metric(self, validation: dict[str, Any]) -> None:
-        try:
-            if validation.get("has_citations") and RAG_ANSWERS_WITH_CITATIONS_TOTAL is not None:
-                RAG_ANSWERS_WITH_CITATIONS_TOTAL.inc()
-            elif RAG_ANSWERS_WITHOUT_CITATIONS_TOTAL is not None:
-                RAG_ANSWERS_WITHOUT_CITATIONS_TOTAL.inc()
-        except Exception:
-            pass
-
     def _record_fallback(self, reason: str) -> None:
-        if RAG_FALLBACKS_TOTAL is None:
+        if record_fallback is not None:
+            try:
+                record_fallback(reason)
+            except Exception:
+                pass
+        elif RAG_FALLBACKS_TOTAL is None:
+            return
+        else:
+            try:
+                RAG_FALLBACKS_TOTAL.labels(reason=reason).inc()
+            except Exception:
+                pass
+        self._log_event("fallback_used", {"reason": reason})
+
+    def _record_query(self, route: dict[str, Any], source_mode: str, language: str) -> None:
+        if record_query is None:
             return
         try:
-            RAG_FALLBACKS_TOTAL.labels(reason=reason).inc()
+            record_query(
+                route=str(route.get("route") or "unknown"),
+                source_mode=str(route.get("source_mode") or source_mode or "unknown"),
+                language=str(route.get("language_hint") or language or "unknown"),
+            )
         except Exception:
             pass
 
-    def _log_answer(self, response: dict[str, Any]) -> None:
+    def _record_answer(self, status: str, has_citations: bool) -> None:
+        if record_answer is None:
+            return
+        try:
+            record_answer(status, has_citations)
+        except Exception:
+            pass
+
+    def _record_error(self, stage: str) -> None:
+        if record_error is None:
+            return
+        try:
+            record_error(stage)
+        except Exception:
+            pass
+
+    def _record_last_query_stats(
+        self,
+        source_count: int,
+        final_results_count: int,
+        citation_count: int,
+    ) -> None:
+        if set_last_query_stats is None:
+            return
+        try:
+            set_last_query_stats(source_count, final_results_count, citation_count)
+        except Exception:
+            pass
+
+    def _record_total_latency(self, response: dict[str, Any]) -> None:
+        if RAG_TOTAL_LATENCY is None:
+            return
+        started_at = response.get("_request_started_at")
+        if started_at is None:
+            return
+        try:
+            RAG_TOTAL_LATENCY.observe(perf_counter() - float(started_at))
+        except Exception:
+            pass
+
+    def _log_event(self, event_type: str, payload: dict[str, Any]) -> None:
         if self.logger is None:
             return
         try:
+            self.logger.log_event(event_type, payload)
+        except Exception:
+            pass
+
+    def _log_answer(self, response: dict[str, Any], status: str, citation_count: int) -> None:
+        if self.logger is None:
+            return
+        try:
+            self.logger.log_event(
+                "generation_completed",
+                {
+                    "query": response.get("query"),
+                    "route": response.get("route", {}).get("route"),
+                    "source_count": len(response.get("sources") or []),
+                    "generation_used": response.get("generation_used"),
+                    "fallback_used": response.get("fallback_used"),
+                    "answer_status": status,
+                    "citation_count": citation_count,
+                    "error": response.get("error"),
+                },
+            )
             self.logger.log_query(
                 {
                     "query": response.get("query"),

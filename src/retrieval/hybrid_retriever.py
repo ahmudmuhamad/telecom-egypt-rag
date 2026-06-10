@@ -14,17 +14,21 @@ from src.retrieval.result_utils import rerank_results
 try:
     from src.logging.rag_logger import RAGLogger
     from src.services.metrics import (
-        RAG_FALLBACKS_TOTAL,
-        RAG_QUERIES_TOTAL,
         RAG_RERANKING_LATENCY,
         RAG_RETRIEVAL_LATENCY,
+        record_error,
+        record_fallback,
+        record_reranking,
+        record_retrieval,
     )
 except Exception:  # pragma: no cover
-    RAG_FALLBACKS_TOTAL = None
     RAGLogger = None
-    RAG_QUERIES_TOTAL = None
     RAG_RERANKING_LATENCY = None
     RAG_RETRIEVAL_LATENCY = None
+    record_error = None
+    record_fallback = None
+    record_reranking = None
+    record_retrieval = None
 
 
 ARABIC_DIGITS = str.maketrans("\u0660\u0661\u0662\u0663\u0664\u0665\u0666\u0667\u0668\u0669", "0123456789")
@@ -99,7 +103,7 @@ class HybridRetriever:
     ) -> dict[str, Any]:
         started_at = perf_counter()
         route = route_query(query, source_mode=source_mode)
-        self._record_query(route)
+        self._record_retrieval("hybrid")
 
         response: dict[str, Any] = {
             "query": query,
@@ -145,6 +149,7 @@ class HybridRetriever:
                 if self.reranker.last_error and self.reranker.model is None and not self.reranker.enabled:
                     response["reranking_error"] = self.reranker.last_error
                     self._record_fallback("reranker_unavailable")
+                    self._record_reranking("failed")
                     final_results = self._mark_unreranked(boosted_results[:final_top_k])
                     reranked_results = []
                 else:
@@ -161,6 +166,9 @@ class HybridRetriever:
                     response["reranking_error"] = response["reranking_error"] or self.reranker.last_error
                     if response["reranking_error"]:
                         self._record_fallback("reranker_unavailable")
+                        self._record_reranking("failed")
+                    else:
+                        self._record_reranking("disabled")
                     final_results = self._mark_unreranked(boosted_results[:final_top_k])
                     reranked_results = []
             except Exception as exc:
@@ -168,6 +176,8 @@ class HybridRetriever:
                     raise
                 response["reranking_error"] = str(exc)
                 self._record_fallback("reranker_error")
+                self._record_error("reranking")
+                self._record_reranking("failed")
                 final_results = self._mark_unreranked(boosted_results[:final_top_k])
             finally:
                 if (
@@ -176,7 +186,10 @@ class HybridRetriever:
                 ):
                     self.reranker.enabled = original_enabled
                 self._record_reranking_latency(perf_counter() - rerank_started_at)
+            if response["reranking_used"]:
+                self._record_reranking("used")
         else:
+            self._record_reranking("disabled")
             final_results = self._mark_unreranked(boosted_results[:final_top_k])
 
         response.update(
@@ -359,15 +372,11 @@ class HybridRetriever:
             return 0.01
         return 0.0
 
-    def _record_query(self, route: dict[str, Any]) -> None:
-        if RAG_QUERIES_TOTAL is None:
+    def _record_retrieval(self, retriever: str) -> None:
+        if record_retrieval is None:
             return
         try:
-            RAG_QUERIES_TOTAL.labels(
-                route=route.get("route", "unknown"),
-                source_mode=route.get("source_mode", "official"),
-                language=route.get("language_hint") or "unknown",
-            ).inc()
+            record_retrieval(retriever)
         except Exception:
             pass
 
@@ -383,10 +392,26 @@ class HybridRetriever:
             pass
 
     def _record_fallback(self, reason: str) -> None:
-        if RAG_FALLBACKS_TOTAL is None:
+        if record_fallback is None:
             return
         try:
-            RAG_FALLBACKS_TOTAL.labels(reason=reason).inc()
+            record_fallback(reason)
+        except Exception:
+            pass
+
+    def _record_reranking(self, status: str) -> None:
+        if record_reranking is None:
+            return
+        try:
+            record_reranking(status)
+        except Exception:
+            pass
+
+    def _record_error(self, stage: str) -> None:
+        if record_error is None:
+            return
+        try:
+            record_error(stage)
         except Exception:
             pass
 
