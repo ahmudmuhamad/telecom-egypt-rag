@@ -55,6 +55,24 @@ class Settings(BaseSettings):
     log_dir: Path = Field(default=Path("data/logs"))
     kb_dir: Path = Field(default=Path("data/knowledge_base"))
 
+    enable_uploads: bool = True
+    max_upload_size_mb: int = 25
+    upload_allowed_extensions: str = "pdf,docx,txt,html,htm,png,jpg,jpeg,tiff,tif"
+    upload_chunk_size: int = 512
+    upload_chunk_overlap: int = 50
+    upload_bm25_enabled: bool = True
+    upload_dense_enabled: bool = True
+    upload_collection_mode: str = "same_collection"
+    upload_session_isolation: bool = True
+
+    upload_dense_top_k: int = 20
+    upload_bm25_top_k: int = 20
+    upload_final_top_k: int = 5
+
+    both_official_top_k: int = 5
+    both_upload_top_k: int = 5
+    both_final_top_k: int = 8
+
     dense_top_k: int = 30
     bm25_top_k: int = 30
     final_top_k: int = 5

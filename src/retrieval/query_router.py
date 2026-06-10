@@ -21,15 +21,18 @@ REJECTION_TERMS = {
     "vodafone",
     "orange",
     "etisalat",
-    "illegal bypass",
-    "bypass",
-    "hacking",
-    "hack",
     "private customer data",
     "personal bill",
     "\u0641\u0648\u062f\u0627\u0641\u0648\u0646",
     "\u0627\u0648\u0631\u0627\u0646\u062c",
     "\u0627\u062a\u0635\u0627\u0644\u0627\u062a",
+}
+
+UNSAFE_REJECTION_TERMS = {
+    "illegal bypass",
+    "bypass",
+    "hacking",
+    "hack",
 }
 
 CATEGORY_RULES: dict[str, tuple[str, ...]] = {
@@ -109,7 +112,10 @@ def route_query(query: str, source_mode: str = "official") -> dict[str, Any]:
             "complexity_decision": complexity_decision,
         }
 
-    if any(term in normalized for term in REJECTION_TERMS):
+    rejection_terms = UNSAFE_REJECTION_TERMS if source_mode in {"uploads", "both"} else (
+        REJECTION_TERMS | UNSAFE_REJECTION_TERMS
+    )
+    if any(term in normalized for term in rejection_terms):
         return {
             "route": "rejection",
             "source_mode": source_mode,
@@ -120,7 +126,7 @@ def route_query(query: str, source_mode: str = "official") -> dict[str, Any]:
             "complexity_decision": complexity_decision,
         }
 
-    category_filter = infer_category(normalized)
+    category_filter = infer_category(normalized) if source_mode == "official" else None
     metadata_filters = {"category": category_filter} if category_filter else {}
 
     return {
@@ -128,7 +134,7 @@ def route_query(query: str, source_mode: str = "official") -> dict[str, Any]:
         "source_mode": source_mode,
         "category_filter": category_filter,
         "language_hint": language_hint,
-        "reason": "Query appears answerable from Telecom Egypt official KB.",
+        "reason": "Query appears answerable from the selected sources.",
         "metadata_filters": metadata_filters,
         "complexity_decision": complexity_decision,
     }

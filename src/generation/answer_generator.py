@@ -68,6 +68,7 @@ class AnswerGenerator:
         self,
         query: str,
         source_mode: str = "official",
+        upload_session_id: str | None = None,
         top_k: int | None = None,
         use_reranking: bool | None = None,
         debug: bool = False,
@@ -79,6 +80,7 @@ class AnswerGenerator:
             retrieval = self.retriever.retrieve(
                 query,
                 source_mode=source_mode,
+                upload_session_id=upload_session_id,
                 top_k=top_k,
                 enable_reranking=use_reranking,
                 debug=debug,
@@ -153,6 +155,12 @@ class AnswerGenerator:
             )
 
         final_results = retrieval.get("final_results") or []
+        if route.get("source_mode") == "uploads" and not upload_session_id and not final_results:
+            self._record_fallback("no_uploaded_documents")
+            answer = self._upload_first_answer(language)
+            base_response["validation"] = validate_answer_grounding(answer, [], require_citations=False)
+            return self._finalize(base_response, answer, [], status="fallback")
+
         if len(final_results) < settings.min_sources_for_answer and not settings.allow_no_source_answer:
             self._record_fallback("no_sources")
             answer = build_no_source_answer(query, language)
@@ -299,6 +307,13 @@ class AnswerGenerator:
         if faq_answer:
             return f"{make_snippet(faq_answer, max_chars=320)} [{source_id}]"
 
+        if source.get("source_type") == "user_upload":
+            snippet = make_snippet(clean_content, max_chars=420)
+            suffix = "" if snippet.endswith((".", "!", "?", "؟")) else "."
+            if is_arabic:
+                return f"المعلومة المتاحة من المستند هي: {snippet}{suffix} [{source_id}]"
+            return f"The uploaded document says: {snippet}{suffix} [{source_id}]"
+
         if package_name and any(value for value in (price, quota, speed)):
             details: list[str] = []
             if quota:
@@ -391,6 +406,11 @@ class AnswerGenerator:
                 "/api/chat",
             )
         )
+
+    def _upload_first_answer(self, language: str) -> str:
+        if language in {"ar", "mixed"}:
+            return "من فضلك ارفع مستند أولًا، ثم اسأل سؤالك."
+        return "Please upload a document first, then ask your question."
 
     def _finalize(
         self,

@@ -23,8 +23,11 @@ data/logs/*
 !data/logs/.gitkeep
 
 # Uploads may contain private customer or reviewer files.
-data/uploads/*
+data/uploads/**
+!data/uploads/
 !data/uploads/.gitkeep
+!data/uploads/**/
+!data/uploads/**/.gitkeep
 
 # Generated indexes and unified KB outputs are reproducible from source data.
 data/indexes/*

@@ -19,6 +19,9 @@ PAYLOAD_INDEX_FIELDS = (
     "category",
     "record_type",
     "language",
+    "upload_session_id",
+    "document_id",
+    "file_name",
     "product_family",
     "service_category",
     "device_category",
@@ -71,6 +74,12 @@ def payload_from_chunk(chunk: dict[str, Any]) -> dict[str, Any]:
         "content": chunk.get("content"),
         "index_text": chunk.get("index_text"),
         "citation_url": chunk.get("citation_url"),
+        "citation_label": chunk.get("citation_label"),
+        "document_id": chunk.get("document_id"),
+        "upload_session_id": chunk.get("upload_session_id"),
+        "file_name": chunk.get("file_name"),
+        "file_type": chunk.get("file_type"),
+        "page_number": chunk.get("page_number"),
         "chunk_index": chunk.get("chunk_index"),
         "total_chunks": chunk.get("total_chunks"),
         "metadata": metadata,
@@ -240,6 +249,92 @@ class QdrantIndexer:
         manifest["chunks_skipped_existing_this_run"] = skipped
         write_manifest(manifest_path, manifest)
         return manifest
+
+    def upsert_chunks(
+        self,
+        chunks: list[dict[str, Any]],
+        recreate: bool = False,
+        batch_size: int = 16,
+    ) -> dict[str, Any]:
+        if not chunks:
+            return {"collection_name": settings.qdrant_collection, "chunks_indexed_this_run": 0}
+
+        test_embedding = self.ollama.embed(["Telecom Egypt upload indexing dimension check"])[0]
+        vector_size = len(test_embedding)
+        collection_name = settings.qdrant_collection
+        self._ensure_collection(collection_name, vector_size, recreate=recreate)
+        payload_index_warnings = create_payload_indexes(self.client, collection_name)
+
+        indexed = 0
+        for start in range(0, len(chunks), batch_size):
+            batch = chunks[start : start + batch_size]
+            vectors = self.ollama.embed([chunk["index_text"] for chunk in batch])
+            points = [
+                models.PointStruct(
+                    id=point_id_from_chunk_id(chunk["chunk_id"]),
+                    vector=vector,
+                    payload=payload_from_chunk(chunk),
+                )
+                for chunk, vector in zip(batch, vectors, strict=True)
+            ]
+            self.client.upsert(collection_name=collection_name, points=points)
+            indexed += len(points)
+
+        return {
+            "collection_name": collection_name,
+            "vector_size": vector_size,
+            "chunks_indexed_this_run": indexed,
+            "payload_index_warnings": payload_index_warnings,
+        }
+
+    def delete_upload_session(self, upload_session_id: str) -> bool:
+        if not upload_session_id:
+            return False
+        collection_name = settings.qdrant_collection
+        try:
+            if not self.client.collection_exists(collection_name):
+                return False
+            self.client.delete(
+                collection_name=collection_name,
+                points_selector=models.FilterSelector(
+                    filter=models.Filter(
+                        must=[
+                            models.FieldCondition(
+                                key="source_type",
+                                match=models.MatchValue(value="user_upload"),
+                            ),
+                            models.FieldCondition(
+                                key="upload_session_id",
+                                match=models.MatchValue(value=upload_session_id),
+                            ),
+                        ]
+                    )
+                ),
+            )
+            return True
+        except Exception:
+            return False
+
+    def _ensure_collection(self, collection_name: str, vector_size: int, recreate: bool = False) -> None:
+        if recreate:
+            self.client.recreate_collection(
+                collection_name=collection_name,
+                vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
+            )
+            return
+        if not self.client.collection_exists(collection_name):
+            self.client.create_collection(
+                collection_name=collection_name,
+                vectors_config=models.VectorParams(size=vector_size, distance=models.Distance.COSINE),
+            )
+            return
+        collection = self.client.get_collection(collection_name)
+        current_size = getattr(collection.config.params.vectors, "size", None)
+        if current_size is not None and int(current_size) != vector_size:
+            raise RuntimeError(
+                f"Qdrant collection '{collection_name}' vector size is {current_size}, "
+                f"but uploaded chunks embed to {vector_size}."
+            )
 
     def _existing_point_ids(self, collection_name: str, chunks: list[dict[str, Any]]) -> set[str]:
         ids = [point_id_from_chunk_id(chunk["chunk_id"]) for chunk in chunks]

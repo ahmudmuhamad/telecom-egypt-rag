@@ -174,6 +174,111 @@ def build_chunk_index_text(chunk: dict[str, Any]) -> str:
     return "\n".join(part for part in parts if part).strip()
 
 
+def detect_language(text: str) -> str | None:
+    has_arabic = bool(re.search(r"[\u0600-\u06FF]", text or ""))
+    has_latin = bool(re.search(r"[A-Za-z]", text or ""))
+    if has_arabic and has_latin:
+        return "mixed"
+    if has_arabic:
+        return "ar"
+    if has_latin:
+        return "en"
+    return None
+
+
+def chunk_uploaded_document(
+    converted_doc: dict[str, Any],
+    upload_session_id: str,
+    chunk_size: int,
+    chunk_overlap: int,
+) -> list[dict[str, Any]]:
+    document_id = converted_doc["document_id"]
+    file_name = converted_doc["file_name"]
+    file_type = converted_doc["file_type"]
+    title = converted_doc.get("title") or file_name
+    sources = _upload_text_sources(converted_doc)
+
+    chunk_parts: list[dict[str, Any]] = []
+    for source in sources:
+        text = source["text"]
+        page_number = source.get("page_number")
+        parts = split_text_recursive(text, chunk_size, chunk_overlap) or [text]
+        for part in parts:
+            if part.strip():
+                chunk_parts.append({"content": part.strip(), "page_number": page_number})
+
+    chunks: list[dict[str, Any]] = []
+    total_chunks = len(chunk_parts)
+    for index, part in enumerate(chunk_parts):
+        page_number = part.get("page_number")
+        parent_record_id = f"{document_id}:page:{page_number}" if page_number else document_id
+        citation_label = _upload_citation_label(file_name, page_number)
+        metadata = {
+            "file_name": file_name,
+            "file_type": file_type,
+            "page_number": page_number,
+            "document_id": document_id,
+            "upload_session_id": upload_session_id,
+        }
+        content = part["content"]
+        chunk = {
+            "chunk_id": stable_chunk_id(parent_record_id, index, content),
+            "parent_record_id": parent_record_id,
+            "document_id": document_id,
+            "upload_session_id": upload_session_id,
+            "source_type": "user_upload",
+            "source_name": "Uploaded Document",
+            "category": "uploaded_document",
+            "record_type": "uploaded_chunk",
+            "language": detect_language(content),
+            "title": title,
+            "content": content,
+            "index_text": "",
+            "citation_url": None,
+            "citation_label": citation_label,
+            "file_name": file_name,
+            "file_type": file_type,
+            "page_number": page_number,
+            "chunk_index": index,
+            "total_chunks": total_chunks,
+            "metadata": metadata,
+        }
+        chunk["index_text"] = build_upload_chunk_index_text(chunk)
+        chunks.append(chunk)
+    return chunks
+
+
+def build_upload_chunk_index_text(chunk: dict[str, Any]) -> str:
+    page_number = chunk.get("page_number")
+    parts = [
+        f"Title: {chunk.get('title') or ''}",
+        f"File name: {chunk.get('file_name') or ''}",
+        f"File type: {chunk.get('file_type') or ''}",
+        f"Page: {page_number}" if page_number else "",
+        f"Content:\n{chunk.get('content') or ''}",
+    ]
+    return "\n".join(part for part in parts if part).strip()
+
+
+def _upload_text_sources(converted_doc: dict[str, Any]) -> list[dict[str, Any]]:
+    pages = converted_doc.get("pages") or []
+    page_sources: list[dict[str, Any]] = []
+    for page in pages:
+        text = (page.get("text") or page.get("markdown") or "").strip()
+        if text:
+            page_sources.append({"text": text, "page_number": page.get("page_number")})
+    if page_sources:
+        return page_sources
+    text = (converted_doc.get("text") or converted_doc.get("markdown") or "").strip()
+    return [{"text": text, "page_number": None}] if text else []
+
+
+def _upload_citation_label(file_name: str, page_number: Any) -> str:
+    if page_number:
+        return f"Uploaded document — {file_name}, page {page_number}"
+    return f"Uploaded document — {file_name}"
+
+
 def chunk_record(record: dict[str, Any], chunk_size: int, chunk_overlap: int) -> list[dict[str, Any]]:
     working_record = {**record, "_chunk_size": chunk_size}
     atomic = is_atomic_record(working_record)

@@ -42,6 +42,74 @@ def write_json(path: Path, row: dict[str, Any]) -> None:
         file.write("\n")
 
 
+def build_bm25_artifact_from_chunks(
+    chunks: list[dict[str, Any]],
+    output_path: Path,
+    manifest_path: Path | None = None,
+) -> dict[str, Any]:
+    if not chunks:
+        raise RuntimeError("No chunks provided for BM25 indexing.")
+
+    tokenized_corpus = [tokenize_for_bm25(chunk.get("index_text") or "") for chunk in chunks]
+    bm25 = BM25Okapi(tokenized_corpus)
+    chunk_refs = [chunk_ref_from_chunk(chunk) for chunk in chunks]
+    artifact = {
+        "bm25": bm25,
+        "chunks": chunk_refs,
+        "tokenized_corpus": tokenized_corpus,
+        "index_version": settings.index_version,
+        "kb_version": chunks[0].get("kb_version"),
+        "embedding_provider": settings.embedding_provider,
+        "embedding_model": settings.ollama_embedding_model,
+        "tokenizer_version": TOKENIZER_VERSION,
+        "source_chunks_file": None,
+    }
+
+    output = resolve_project_path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("wb") as file:
+        pickle.dump(artifact, file)
+
+    manifest = {
+        "kb_version": chunks[0].get("kb_version"),
+        "index_version": settings.index_version,
+        "total_chunks": len(chunks),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "tokenizer_version": TOKENIZER_VERSION,
+        "source_chunks_file": None,
+        "bm25_index_path": str(output),
+    }
+    if manifest_path is not None:
+        write_json(manifest_path, manifest)
+    return manifest
+
+
+def chunk_ref_from_chunk(chunk: dict[str, Any]) -> dict[str, Any]:
+    metadata = chunk.get("metadata") or {}
+    return {
+        "chunk_id": chunk.get("chunk_id"),
+        "parent_record_id": chunk.get("parent_record_id"),
+        "document_id": chunk.get("document_id"),
+        "upload_session_id": chunk.get("upload_session_id"),
+        "source_type": chunk.get("source_type"),
+        "source_name": chunk.get("source_name"),
+        "category": chunk.get("category"),
+        "record_type": chunk.get("record_type"),
+        "language": chunk.get("language"),
+        "title": chunk.get("title"),
+        "content": chunk.get("content"),
+        "index_text": chunk.get("index_text"),
+        "citation_url": chunk.get("citation_url"),
+        "citation_label": chunk.get("citation_label"),
+        "file_name": chunk.get("file_name"),
+        "file_type": chunk.get("file_type"),
+        "page_number": chunk.get("page_number"),
+        "chunk_index": chunk.get("chunk_index"),
+        "total_chunks": chunk.get("total_chunks"),
+        "metadata": metadata,
+    }
+
+
 def build_bm25_index(
     chunks_path: Path,
     output_path: Path,
@@ -53,21 +121,7 @@ def build_bm25_index(
 
     tokenized_corpus = [tokenize_for_bm25(chunk.get("index_text") or "") for chunk in chunks]
     bm25 = BM25Okapi(tokenized_corpus)
-    chunk_refs = [
-        {
-            "chunk_id": chunk.get("chunk_id"),
-            "parent_record_id": chunk.get("parent_record_id"),
-            "category": chunk.get("category"),
-            "record_type": chunk.get("record_type"),
-            "language": chunk.get("language"),
-            "title": chunk.get("title"),
-            "citation_url": chunk.get("citation_url"),
-            "chunk_index": chunk.get("chunk_index"),
-            "total_chunks": chunk.get("total_chunks"),
-            "metadata": chunk.get("metadata") or {},
-        }
-        for chunk in chunks
-    ]
+    chunk_refs = [chunk_ref_from_chunk(chunk) for chunk in chunks]
 
     artifact = {
         "bm25": bm25,

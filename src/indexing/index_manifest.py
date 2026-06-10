@@ -1,3 +1,3 @@
 class IndexManifest:
-    # Manifest tracker for indexed datasets
-    pass\n
+    """Placeholder manifest tracker for indexed datasets."""
+

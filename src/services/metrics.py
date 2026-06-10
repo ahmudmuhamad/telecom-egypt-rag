@@ -99,6 +99,18 @@ RAG_CACHE_MISSES_TOTAL = _get_or_create(
     "Total cache misses.",
     ["cache_type"],
 )
+RAG_UPLOADS_TOTAL = _get_or_create(
+    Counter,
+    "uploads_total",
+    "Total uploaded files by type and status.",
+    ["file_type", "status"],
+)
+RAG_UPLOADED_CHUNKS_TOTAL = _get_or_create(
+    Counter,
+    "uploaded_chunks_total",
+    "Total uploaded chunks by file type.",
+    ["file_type"],
+)
 
 RAG_TOTAL_LATENCY = _get_or_create(
     Histogram,
@@ -134,6 +146,11 @@ RAG_CONTEXT_ASSEMBLY_LATENCY = _get_or_create(
     Histogram,
     "context_assembly_latency_seconds",
     "Context assembly latency in seconds.",
+)
+RAG_UPLOAD_PROCESSING_LATENCY = _get_or_create(
+    Histogram,
+    "upload_processing_latency_seconds",
+    "Uploaded document processing latency in seconds.",
 )
 
 RAG_ACTIVE_SESSIONS = _get_or_create(
@@ -259,6 +276,16 @@ def record_cache_miss(cache_type: str) -> None:
     _inc(RAG_CACHE_MISSES_TOTAL, {"cache_type": cache_type or "unknown"})
 
 
+def record_upload(file_type: str, status: str, chunks_count: int = 0) -> None:
+    normalized_file_type = file_type or "unknown"
+    _inc(RAG_UPLOADS_TOTAL, {"file_type": normalized_file_type, "status": status or "unknown"})
+    if chunks_count > 0:
+        try:
+            RAG_UPLOADED_CHUNKS_TOTAL.labels(file_type=normalized_file_type).inc(chunks_count)
+        except Exception:
+            pass
+
+
 def set_last_query_stats(source_count: int, final_results_count: int, citation_count: int) -> None:
     try:
         RAG_LAST_QUERY_SOURCES_COUNT.set(max(0, int(source_count)))
@@ -266,4 +293,3 @@ def set_last_query_stats(source_count: int, final_results_count: int, citation_c
         RAG_LAST_ANSWER_CITATION_COUNT.set(max(0, int(citation_count)))
     except Exception:
         pass
-

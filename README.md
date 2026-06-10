@@ -441,7 +441,7 @@ If answer generation reaches Ollama but times out, increase `OLLAMA_TIMEOUT_SECO
 
 The Streamlit app is the public-facing chat UI for end users. It shows only the conversation, final answers, and citation/source cards. It hides internal pipeline details such as model names, fallback state, reranking, retrieval scores, route metadata, and debug payloads.
 
-The UI currently answers from the official Telecom Egypt knowledge base only. Uploads and document processing will be added in a later phase.
+The UI can answer from official Telecom Egypt sources, uploaded documents, or both.
 
 Required local services:
 
@@ -467,7 +467,33 @@ Then open:
 http://localhost:8501
 ```
 
+## Uploaded Documents with Docling
+
+Users can upload PDF, DOCX, TXT, HTML, and common image files. Documents are converted locally using Docling where supported; TXT and HTML also have lightweight local fallbacks. The first Docling run may take time, and OCR/image processing can be slower.
+
+Uploaded document chunks are stored locally under `data/uploads`, inserted into Qdrant with `source_type=user_upload`, and indexed into a per-session BM25 index. Retrieval over uploads uses hybrid dense + BM25 retrieval, the same retrieval pattern as the official WE knowledge base. In `Both` mode, official hybrid results and uploaded hybrid results are fused before answer generation.
+
+Uploaded documents are scoped to the current demo session. Uploaded files are local runtime data and must not be committed.
+
+Run Streamlit:
+
+```bash
+uv run streamlit run app/streamlit_app.py
+```
+
+Test upload ingestion:
+
+```bash
+uv run python scripts/test_upload_ingestion.py path/to/file.pdf
+```
+
+Test uploaded retrieval:
+
+```bash
+uv run python scripts/test_uploaded_retrieval.py path/to/file.pdf "What is this document about?"
+```
+
 ## Next Implementation Phases
 
-- Docling upload processing.
-- Evaluation and regression checks.
+- Upload evaluation and regression checks.
+- Future FastAPI backend and Dockerized app runtime.

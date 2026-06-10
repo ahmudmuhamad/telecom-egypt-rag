@@ -7,15 +7,25 @@ from config.settings import settings
 
 
 def format_source(result: dict[str, Any], source_id: int) -> dict[str, Any]:
-    title = result.get("title") or "Telecom Egypt source"
+    source_type = result.get("source_type") or "official_website"
+    title = result.get("title") or ("Uploaded document" if source_type == "user_upload" else "Telecom Egypt source")
     content = result.get("content") or result.get("index_text") or ""
+    citation_label = result.get("citation_label")
+    if source_type == "user_upload":
+        citation_label = citation_label or _upload_citation_label(result)
+        source_name = "Uploaded document"
+        citation_url = ""
+    else:
+        source_name = result.get("source_name") or "Telecom Egypt"
+        citation_url = result.get("citation_url") or ""
+        citation_label = citation_label or f"Telecom Egypt - {title}"
     return {
         "source_id": source_id,
         "title": title,
-        "source_type": result.get("source_type") or "official_website",
-        "source_name": result.get("source_name") or "Telecom Egypt",
-        "citation_url": result.get("citation_url") or "",
-        "citation_label": f"Telecom Egypt - {title}",
+        "source_type": source_type,
+        "source_name": source_name,
+        "citation_url": citation_url,
+        "citation_label": citation_label,
         "category": result.get("category"),
         "record_type": result.get("record_type"),
         "language": result.get("language"),
@@ -24,6 +34,9 @@ def format_source(result: dict[str, Any], source_id: int) -> dict[str, Any]:
         "score": float(result.get("final_score") or result.get("score") or 0.0),
         "metadata": result.get("metadata") or {},
         "chunk_id": result.get("chunk_id"),
+        "document_id": result.get("document_id"),
+        "file_name": result.get("file_name"),
+        "page_number": result.get("page_number"),
     }
 
 
@@ -93,6 +106,23 @@ def deduplicate_sources(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for result in results:
         metadata = result.get("metadata") or {}
         content = result.get("content") or result.get("index_text") or ""
+        if result.get("source_type") == "user_upload":
+            keys = [
+                str(result.get("chunk_id") or ""),
+                "|".join(
+                    [
+                        str(result.get("document_id") or metadata.get("document_id") or ""),
+                        str(result.get("page_number") or metadata.get("page_number") or ""),
+                        normalize_for_key(make_snippet(content, max_chars=220)),
+                    ]
+                ),
+            ]
+            active_keys = {candidate for candidate in keys if candidate.strip("|")}
+            if active_keys & seen:
+                continue
+            seen.update(active_keys)
+            deduped.append(result)
+            continue
         package_or_product = (
             metadata.get("package_name")
             or metadata.get("service_name")
@@ -189,7 +219,7 @@ def clean_user_visible_text(text: str) -> str:
         "retriever:",
     )
     for raw_line in re.split(r"[\r\n]+", text or ""):
-        line = raw_line.strip()
+        line = raw_line.replace("\ufeff", "").strip()
         if not line:
             continue
         lowered = line.lower()
@@ -252,3 +282,12 @@ def _extract_codes(text: str) -> list[str]:
 
 def format_sources(retrieved_docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return format_results_for_display(retrieved_docs)
+
+
+def _upload_citation_label(result: dict[str, Any]) -> str:
+    metadata = result.get("metadata") or {}
+    file_name = result.get("file_name") or metadata.get("file_name") or result.get("title") or "uploaded file"
+    page_number = result.get("page_number") or metadata.get("page_number")
+    if page_number:
+        return f"Uploaded document — {file_name}, page {page_number}"
+    return f"Uploaded document — {file_name}"

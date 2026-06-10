@@ -6,7 +6,7 @@ import warnings
 from pathlib import Path
 from typing import Any
 
-from config.settings import ROOT_DIR
+from config.settings import ROOT_DIR, settings
 from src.indexing.bm25_indexer import TOKENIZER_VERSION, tokenize_for_bm25
 from src.retrieval.dense_retriever import FILTER_FIELDS
 from src.retrieval.result_utils import normalize_retrieval_result, rerank_results
@@ -43,7 +43,7 @@ class BM25Retriever:
     ) -> None:
         self.index_path = resolve_project_path(Path(index_path or DEFAULT_BM25_PATH))
         self.manifest_path = resolve_project_path(Path(manifest_path or DEFAULT_MANIFEST_PATH))
-        self.artifact = self._load_artifact()
+        self.artifact = self._load_artifact(required=True)
         artifact_chunks_path = self.artifact.get("source_chunks_file") if isinstance(self.artifact, dict) else None
         self.chunks_path = resolve_project_path(
             Path(chunks_path or artifact_chunks_path or DEFAULT_CHUNKS_PATH)
@@ -139,8 +139,10 @@ class BM25Retriever:
                 return False
         return True
 
-    def _load_artifact(self) -> dict[str, Any]:
+    def _load_artifact(self, required: bool = True) -> dict[str, Any]:
         if not self.index_path.exists():
+            if not required:
+                return {"bm25": None, "chunks": []}
             raise RuntimeError(
                 f"BM25 index not found at {self.index_path}. "
                 "Build it with: uv run python scripts/build_bm25_index.py"
@@ -203,3 +205,48 @@ class BM25Retriever:
                 RuntimeWarning,
                 stacklevel=2,
             )
+
+
+class UploadedBM25Retriever(BM25Retriever):
+    def __init__(self, upload_session_id: str) -> None:
+        self.upload_session_id = upload_session_id
+        upload_root = resolve_project_path(settings.upload_dir)
+        index_path = upload_root / "indexes" / upload_session_id / "upload_bm25.pkl"
+        self.index_path = index_path
+        self.manifest_path = upload_root / "manifests" / upload_session_id / "upload_bm25_manifest.json"
+        self.artifact = self._load_artifact(required=False)
+        self.chunks_path = upload_root / "chunks" / upload_session_id
+        self.bm25 = self.artifact.get("bm25")
+        self.chunk_refs = self.artifact.get("chunks") or []
+        self.full_chunks_by_id = self._load_full_chunks()
+
+    def search(
+        self,
+        query: str,
+        top_k: int = 30,
+        filters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        if self.bm25 is None or not self.chunk_refs:
+            return []
+        filters = dict(filters or {})
+        filters.setdefault("source_type", "user_upload")
+        filters.setdefault("upload_session_id", self.upload_session_id)
+        return super().search(query, top_k=top_k, filters=filters)
+
+    def _load_full_chunks(self) -> dict[str, dict[str, Any]]:
+        if not self.chunks_path.exists():
+            return {}
+        chunks: dict[str, dict[str, Any]] = {}
+        for path in sorted(self.chunks_path.glob("*_chunks.jsonl")):
+            with path.open("r", encoding="utf-8") as file:
+                for line in file:
+                    if not line.strip():
+                        continue
+                    chunk = json.loads(line)
+                    chunk_id = chunk.get("chunk_id")
+                    if chunk_id:
+                        chunks[chunk_id] = chunk
+        return chunks
+
+    def _validate_manifest(self) -> None:
+        return

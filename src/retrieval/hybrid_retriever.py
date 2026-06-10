@@ -5,7 +5,7 @@ from time import perf_counter
 from typing import Any
 
 from config.settings import settings
-from src.retrieval.bm25_retriever import BM25Retriever
+from src.retrieval.bm25_retriever import BM25Retriever, UploadedBM25Retriever
 from src.retrieval.dense_retriever import DenseRetriever
 from src.retrieval.query_router import route_query
 from src.retrieval.reranker import Reranker
@@ -96,6 +96,7 @@ class HybridRetriever:
         self,
         query: str,
         source_mode: str = "official",
+        upload_session_id: str | None = None,
         top_k: int | None = None,
         enable_reranking: bool | None = None,
         rerank_top_k: int | None = None,
@@ -108,6 +109,7 @@ class HybridRetriever:
         response: dict[str, Any] = {
             "query": query,
             "route": route,
+            "upload_session_id": upload_session_id if route.get("source_mode") != "official" else None,
             "dense_results": [],
             "bm25_results": [],
             "fused_results": [],
@@ -123,21 +125,25 @@ class HybridRetriever:
             self._log_retrieval(query, response, perf_counter() - started_at)
             return response
 
+        if route["source_mode"] in {"uploads", "both"} and not upload_session_id:
+            response["debug"]["message"] = "No upload session was provided."
+            self._log_retrieval(query, response, perf_counter() - started_at)
+            return response
+
         dense_top_k, bm25_top_k, candidate_top_k, final_top_k = self._top_k_from_route(
             route,
             top_k,
             rerank_top_k,
         )
-        filters = route.get("metadata_filters") or {}
-        dense_results = self.dense.search(query, top_k=dense_top_k, filters=filters)
-        bm25_results = self.bm25.search(query, top_k=bm25_top_k, filters=filters)
-
-        if filters and not dense_results and not bm25_results:
-            dense_results = self.dense.search(query, top_k=dense_top_k, filters=None)
-            bm25_results = self.bm25.search(query, top_k=bm25_top_k, filters=None)
-            response["debug"]["filter_fallback"] = filters
-
-        fused_results = self.rrf_fusion(dense_results, bm25_results, k=settings.rrf_k)
+        source_mode = route["source_mode"]
+        dense_results, bm25_results, fused_results = self._retrieve_for_source_mode(
+            query=query,
+            source_mode=source_mode,
+            route_filters=route.get("metadata_filters") or {},
+            upload_session_id=upload_session_id,
+            dense_top_k=dense_top_k,
+            bm25_top_k=bm25_top_k,
+        )
         boosted_results = self.apply_metadata_boosts(query, fused_results)
         candidates = boosted_results[:candidate_top_k]
         reranked_results: list[dict[str, Any]] = []
@@ -210,7 +216,7 @@ class HybridRetriever:
                     "rerank_top_k": candidate_top_k,
                     "final_top_k": final_top_k,
                     "rrf_k": settings.rrf_k,
-                    "metadata_filters": filters,
+                    "metadata_filters": route.get("metadata_filters") or {},
                     "reranker_model": self.reranker.loaded_model_name or self.reranker.model_name,
                     "reranker_device": self.reranker.device,
                     "reranking_enabled": response["reranking_enabled"],
@@ -251,6 +257,105 @@ class HybridRetriever:
             result["final_score"] = result["rrf_score"]
         return rerank_results(sorted_results)
 
+    def rrf_fusion_many(
+        self,
+        result_sets: list[tuple[str, list[dict[str, Any]]]],
+        k: int = 60,
+    ) -> list[dict[str, Any]]:
+        fused: dict[str, dict[str, Any]] = {}
+        for retriever_name, results in result_sets:
+            for rank, result in enumerate(results, start=1):
+                key = result.get("chunk_id") or f"{result.get('citation_url')}:{result.get('title')}"
+                if key not in fused:
+                    fused[key] = dict(result)
+                    fused[key]["retriever"] = "hybrid"
+                    fused[key]["score"] = 0.0
+                    fused[key]["rrf_score"] = 0.0
+                    fused[key]["boost_score"] = 0.0
+                    fused[key]["final_score"] = 0.0
+                fused[key]["rrf_score"] += 1.0 / (k + rank)
+                fused[key]["score"] = fused[key]["rrf_score"]
+                fused[key][f"{retriever_name}_score"] = result.get("score")
+        sorted_results = sorted(fused.values(), key=lambda item: item["rrf_score"], reverse=True)
+        for result in sorted_results:
+            result["final_score"] = result["rrf_score"]
+        return rerank_results(sorted_results)
+
+    def _retrieve_for_source_mode(
+        self,
+        query: str,
+        source_mode: str,
+        route_filters: dict[str, Any],
+        upload_session_id: str | None,
+        dense_top_k: int,
+        bm25_top_k: int,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]]]:
+        if source_mode == "both":
+            official_filters = self._source_filters("official", route_filters, upload_session_id)
+            upload_filters = self._source_filters("uploads", {}, upload_session_id)
+            official_dense = self.dense.search(
+                query,
+                top_k=settings.both_official_top_k,
+                filters=official_filters,
+            )
+            official_bm25 = self.bm25.search(
+                query,
+                top_k=settings.both_official_top_k,
+                filters=official_filters,
+            )
+            upload_dense = self.dense.search(
+                query,
+                top_k=settings.both_upload_top_k,
+                filters=upload_filters,
+            )
+            upload_bm25 = UploadedBM25Retriever(upload_session_id or "").search(
+                query,
+                top_k=settings.both_upload_top_k,
+                filters=upload_filters,
+            )
+            dense_results = [*official_dense, *upload_dense]
+            bm25_results = [*official_bm25, *upload_bm25]
+            fused_results = self.rrf_fusion_many(
+                [
+                    ("official_dense", official_dense),
+                    ("official_bm25", official_bm25),
+                    ("upload_dense", upload_dense),
+                    ("upload_bm25", upload_bm25),
+                ],
+                k=settings.rrf_k,
+            )
+            return dense_results, bm25_results, fused_results
+
+        filters = self._source_filters(source_mode, route_filters, upload_session_id)
+        dense_results = self.dense.search(query, top_k=dense_top_k, filters=filters)
+        if source_mode == "uploads":
+            bm25_results = UploadedBM25Retriever(upload_session_id or "").search(
+                query,
+                top_k=bm25_top_k,
+                filters=filters,
+            )
+        else:
+            bm25_results = self.bm25.search(query, top_k=bm25_top_k, filters=filters)
+            if route_filters and not dense_results and not bm25_results:
+                fallback_filters = self._source_filters(source_mode, {}, upload_session_id)
+                dense_results = self.dense.search(query, top_k=dense_top_k, filters=fallback_filters)
+                bm25_results = self.bm25.search(query, top_k=bm25_top_k, filters=fallback_filters)
+        return dense_results, bm25_results, self.rrf_fusion(dense_results, bm25_results, k=settings.rrf_k)
+
+    def _source_filters(
+        self,
+        source_mode: str,
+        route_filters: dict[str, Any],
+        upload_session_id: str | None,
+    ) -> dict[str, Any]:
+        filters = dict(route_filters or {})
+        if source_mode == "official":
+            filters["source_type"] = "official_website"
+        elif source_mode == "uploads":
+            filters["source_type"] = "user_upload"
+            filters["upload_session_id"] = upload_session_id
+        return {key: value for key, value in filters.items() if value not in (None, "", [])}
+
     def apply_metadata_boosts(
         self,
         query: str,
@@ -270,6 +375,17 @@ class HybridRetriever:
             record_type = str(item.get("record_type") or "").lower()
             category = str(item.get("category") or "").lower()
             boost = 0.0
+
+            if item.get("source_type") == "user_upload":
+                query_tokens = {
+                    token
+                    for token in re.findall(r"[\w\u0600-\u06FF-]+", normalized_query)
+                    if len(token) > 2
+                }
+                if any(token in content for token in query_tokens):
+                    boost += 0.06
+                if any(token in content for token in query_tokens if any(char.isdigit() for char in token)):
+                    boost += 0.04
 
             if any(term in normalized_query for term in CODE_TERMS):
                 if any(kind in record_type for kind in ("service_code", "service_detail", "service_fee")):
@@ -350,11 +466,23 @@ class HybridRetriever:
         top_k: int | None,
         rerank_top_k: int | None,
     ) -> tuple[int, int, int, int]:
-        decision = route.get("complexity_decision") or {}
-        dense_top_k = int(decision.get("dense_top_k") or settings.dense_top_k)
-        bm25_top_k = int(decision.get("bm25_top_k") or settings.bm25_top_k)
-        candidate_top_k = int(decision.get("rerank_top_k") or settings.rerank_top_k)
-        final_top_k = int(decision.get("final_top_k") or settings.final_top_k)
+        source_mode = route.get("source_mode")
+        if source_mode == "uploads":
+            dense_top_k = settings.upload_dense_top_k
+            bm25_top_k = settings.upload_bm25_top_k
+            candidate_top_k = max(settings.upload_dense_top_k, settings.upload_bm25_top_k)
+            final_top_k = settings.upload_final_top_k
+        elif source_mode == "both":
+            dense_top_k = max(settings.standard_dense_top_k, settings.upload_dense_top_k)
+            bm25_top_k = max(settings.standard_bm25_top_k, settings.upload_bm25_top_k)
+            candidate_top_k = settings.both_final_top_k * 3
+            final_top_k = settings.both_final_top_k
+        else:
+            decision = route.get("complexity_decision") or {}
+            dense_top_k = int(decision.get("dense_top_k") or settings.dense_top_k)
+            bm25_top_k = int(decision.get("bm25_top_k") or settings.bm25_top_k)
+            candidate_top_k = int(decision.get("rerank_top_k") or settings.rerank_top_k)
+            final_top_k = int(decision.get("final_top_k") or settings.final_top_k)
         if rerank_top_k is not None:
             candidate_top_k = rerank_top_k
         if top_k is not None:
