@@ -58,8 +58,48 @@ services:
       - telecom_rag_network
     restart: unless-stopped
 
-  # Future phases will add rag-api and streamlit application containers.
-  # During the foundation stage, run app/indexing commands manually with uv.
+  streamlit-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: telecom_streamlit_app
+    ports:
+      - "8501:8501"
+      - "8001:8001"
+    environment:
+      - QDRANT_URL=http://qdrant:6333
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - RAG_METRICS_HOST=0.0.0.0
+      - RAG_METRICS_PORT=8001
+      - ENABLE_PROMETHEUS=true
+      - STREAMLIT_SERVER_HEADLESS=true
+      - SMALL_GENERATION_MODEL=qwen3.5:0.8b
+      - MEDIUM_GENERATION_MODEL=qwen3.5:0.8b
+      - LARGE_GENERATION_MODEL=qwen3.5:0.8b
+      - DEFAULT_GENERATION_MODEL=qwen3.5:0.8b
+    volumes:
+      - ../data/uploads:/app/data/uploads
+      - ../data/logs:/app/data/logs
+      - ../data/indexes:/app/data/indexes
+      - ../data/knowledge_base:/app/data/knowledge_base
+    depends_on:
+      - qdrant
+      - ollama
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - telecom_rag_network
+    restart: unless-stopped
 
 volumes:
   qdrant_storage:

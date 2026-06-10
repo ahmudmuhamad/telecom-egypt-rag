@@ -6,22 +6,16 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  # Streamlit currently runs locally with uv and exposes metrics on port 8001.
+  # Containerized Streamlit app exposes Prometheus metrics on port 8001.
   - job_name: rag_app
     metrics_path: /metrics
     static_configs:
-      - targets: ["host.docker.internal:8001"]
-
-  # Future FastAPI rag-api will expose /metrics on port 8000.
-  - job_name: rag-api
-    metrics_path: /metrics
-    static_configs:
-      - targets: ["host.docker.internal:8000"]
+      - targets: ["streamlit-app:8001"]
 
   # Qdrant metrics availability may depend on Qdrant configuration/version.
   - job_name: qdrant
     static_configs:
       - targets: ["qdrant:6333"]
 
-  # Grafana will use Prometheus as a data source manually or through
-  # provisioning in a later phase.
+  # For local development with Streamlit outside Docker, switch rag_app to
+  # host.docker.internal:8001 or add a second target temporarily.

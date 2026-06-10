@@ -1,272 +1,452 @@
 # Telecom Egypt Intelligent Assistant
 
-## Overview
+A local, on-premise RAG assistant for Telecom Egypt / WE services.
+The system answers customer questions using official Telecom Egypt website data and user-uploaded documents, with citations, hybrid retrieval, optional reranking, Streamlit UI, and Prometheus/Grafana observability.
 
-This project is a local on-prem Retrieval-Augmented Generation assistant for Telecom Egypt official website data and, in later phases, uploaded reviewer/customer documents.
+---
 
-The current work moves the project from Colab experimentation toward a reproducible local implementation using uv, Docker Compose, Ollama, Qdrant, Prometheus, and Grafana.
+## Table of Contents
 
-## Current Scope
+* [Project Overview](#project-overview)
+* [Main Features](#main-features)
+* [Architecture](#architecture)
+* [Repository Structure](#repository-structure)
+* [Tech Stack](#tech-stack)
+* [Required Ollama Models](#required-ollama-models)
+* [Quickstart with Docker](#quickstart-with-docker)
+* [Run Streamlit Locally](#run-streamlit-locally)
+* [Build the Knowledge Base and Indexes](#build-the-knowledge-base-and-indexes)
+* [Test Uploaded Documents](#test-uploaded-documents)
+* [Prometheus and Grafana Observability](#prometheus-and-grafana-observability)
+* [Evaluation and Validation](#evaluation-and-validation)
+* [Cost Optimization Strategy](#cost-optimization-strategy)
+* [Future Improvements](#future-improvements)
 
-The current local implementation includes dependency management, Docker Compose infrastructure, Ollama/Qdrant clients, unified official KB building, chunking, Qdrant dense indexing, BM25 indexing, hybrid retrieval, optional reranking, grounded answer generation with citations, an end-user Streamlit chat UI, JSONL logging, and Prometheus/Grafana observability.
+---
 
-It does not yet implement uploaded document processing, Docling-powered ingestion in the UI, Redis, semantic cache, FastAPI backend serving, or a fully Dockerized Streamlit app.
+## Project Overview
+
+The **Telecom Egypt Intelligent Assistant** is a Retrieval-Augmented Generation system designed to answer questions about Telecom Egypt / WE services, packages, devices, FAQs, and user-uploaded documents.
+
+The assistant supports:
+
+* Official Telecom Egypt website knowledge base.
+* Uploaded user documents.
+* Arabic and English queries.
+* Hybrid search using dense vectors and BM25.
+* Source-grounded answers with citations.
+* Optional reranking for higher precision.
+* Streamlit end-user chat interface.
+* Prometheus and Grafana monitoring.
+* On-premise/local deployment using Docker Compose and Ollama.
+
+The project is designed as a practical, reviewer-friendly demonstration of a production-style RAG architecture.
+
+---
+
+## Main Features
+
+### Official WE Knowledge Base
+
+The system ingests structured official Telecom Egypt data from multiple website sections, including:
+
+* FAQ records.
+* Devices and products.
+* Services, codes, fees, and terms.
+* WE Home internet, landline, WE Air, WE Space, WE Sonic, and WE Life records.
+
+The records are normalized into a unified knowledge base and indexed for retrieval.
+
+---
+
+### Uploaded Document RAG
+
+Users can upload documents and ask questions about them.
+
+Supported file types include:
+
+* PDF
+* DOCX
+* TXT
+* HTML
+* Images / screenshots
+
+Uploaded documents are processed locally, chunked, embedded, indexed, and retrieved using hybrid retrieval.
+
+Example:
+
+```txt
+Uploaded document:
+"This is a test document. The contract value is 500 EGP."
+
+Question:
+What is the contract value?
+
+Answer:
+The uploaded document says: "The contract value is 500 EGP." [1]
+
+Source:
+[1] Uploaded document — test_doc.txt
+```
+
+---
+
+### Hybrid Retrieval
+
+The system combines two retrieval methods:
+
+1. **Dense retrieval** using Qdrant and local Ollama embeddings.
+2. **Sparse retrieval** using BM25 keyword search.
+
+The results are combined using Reciprocal Rank Fusion.
+
+This gives the system the benefit of both:
+
+* Semantic matching.
+* Exact keyword/code/price matching.
+
+This is especially important for telecom data because queries may include:
+
+* USSD codes such as `*550#`
+* Plan names
+* Prices
+* Quotas
+* Speeds
+* Device names
+* Invoice/contract values in uploaded documents
+
+---
+
+### Answer Generation with Citations
+
+The assistant generates grounded answers using retrieved sources.
+
+Every answer is expected to include citations such as:
+
+```txt
+كود معرفة الرصيد هو *550#، ورسوم الخدمة 5 قروش. [1]
+```
+
+Sources are shown separately under the answer.
+
+If the local generation model fails, times out, or does not follow citation requirements, the system falls back to a deterministic grounded answer using retrieved sources.
+
+This keeps the final answer safe and source-backed.
+
+---
+
+### Streamlit End-User Interface
+
+The Streamlit UI is designed for end users.
+
+It shows:
+
+* Clean chat interface.
+* Final answer.
+* Source citations.
+* Upload section.
+* Source selector.
+
+It does **not** show internal technical details such as:
+
+* Model name.
+* Reranking details.
+* Scores.
+* Debug logs.
+* Retrieval internals.
+* Fallback status.
+
+---
+
+### Observability
+
+The system exposes Prometheus metrics and includes a Grafana dashboard for monitoring.
+
+Tracked metrics include:
+
+* Total queries.
+* Query latency.
+* Retrieval latency.
+* Generation latency.
+* Answer status.
+* Fallback counts.
+* Errors by stage.
+* Reranking usage.
+* Citation quality.
+
+---
 
 ## Architecture
 
-- `app/`: Streamlit application placeholder for later phases.
-- `config/`: environment templates and typed settings.
-- `data/`: curated inputs, generated indexes, uploads, logs, and knowledge-base artifacts.
-- `docker/`: Docker Compose, Prometheus, and future Grafana provisioning.
-- `scripts/`: operational scripts for indexing/evaluation phases and model pulls.
-- `src/services/`: Ollama, Qdrant, metrics, cache, and logging helpers.
-- `src/retrieval/`: retrieval modules plus model routing scaffolding.
+```mermaid
+flowchart TD
+    U[User] --> UI[Streamlit Chat UI]
 
-## Data Sources
+    UI --> AG[Answer Generator]
 
-Current curated processed input files:
+    AG --> QR[Query Router]
+    QR --> HR[Hybrid Retriever]
 
-- FAQ: `data/processed/faq/faq_post_processed.jsonl`
-- Devices: `data/processed/devices/devices_post_processed_v2.jsonl`
-- Services: `data/processed/services/services_post_processed_v3.jsonl`
-- WE Home: `data/processed/we_home/we_home.jsonl`
+    HR --> DQ[Dense Retriever]
+    HR --> BM[BM25 Retriever]
 
-These JSONL files are project inputs and should remain trackable unless the team intentionally changes that policy.
+    DQ --> QD[Qdrant Vector DB]
+    BM --> BI[BM25 Index]
 
-## Local On-Prem Stack
+    HR --> RR[Optional Reranker]
+    RR --> AG
 
-- Ollama for local embedding and generation models.
-- Qdrant for dense vector search.
-- BM25 planned later for sparse retrieval.
-- Prometheus for metrics collection.
-- Grafana for dashboards.
-- Rule-based query/model routing first, with LLM routing deferred.
+    AG --> OC[Ollama Local LLM]
+    OC --> AG
 
-## Dependency Management with uv
+    AG --> UI
 
-Install uv if needed:
+    subgraph Official_KB[Official Telecom Egypt KB]
+        PJSON[Processed JSONL Files]
+        UKB[Unified KB]
+        CH[Chunks]
+        QIDX[Qdrant Index]
+        BIDX[BM25 Index]
+    end
 
-```bash
-pip install uv
+    PJSON --> UKB --> CH
+    CH --> QIDX --> QD
+    CH --> BIDX --> BI
+
+    subgraph Uploads[Uploaded Documents]
+        UP[PDF / DOCX / TXT / HTML / Image]
+        DL[Docling Extraction / OCR]
+        UCH[Uploaded Chunks]
+        UQ[Uploaded Dense Index]
+        UBM[Uploaded BM25 Index]
+    end
+
+    UI --> UP
+    UP --> DL --> UCH
+    UCH --> UQ --> QD
+    UCH --> UBM --> BM
+
+    subgraph Monitoring[Observability]
+        PM[Prometheus]
+        GF[Grafana]
+    end
+
+    UI --> MET[Metrics Endpoint]
+    AG --> MET
+    HR --> MET
+    MET --> PM --> GF
 ```
 
-Create the virtual environment:
+---
 
-```bash
-uv venv
+## Repository Structure
+
+```txt
+telecom-egypt-rag/
+│
+├── app/
+│   └── streamlit_app.py
+│
+├── config/
+│   ├── .env.example
+│   ├── kb_sources.yaml
+│   └── settings.py
+│
+├── data/
+│   ├── evaluation/
+│   ├── indexes/
+│   ├── knowledge_base/
+│   ├── logs/
+│   ├── processed/
+│   │   ├── devices/
+│   │   ├── faq/
+│   │   ├── services/
+│   │   └── we_home/
+│   └── uploads/
+│
+├── docker/
+│   ├── docker-compose.yml
+│   ├── prometheus.yml
+│   └── grafana/
+│       ├── dashboards/
+│       └── provisioning/
+│
+├── scripts/
+│   ├── build_unified_kb.py
+│   ├── build_chunks.py
+│   ├── build_bm25_index.py
+│   ├── build_qdrant_index.py
+│   ├── reset_indexes.py
+│   ├── run_generation_eval.py
+│   ├── run_retrieval_eval.py
+│   ├── test_generation.py
+│   ├── test_retrieval.py
+│   ├── test_upload_ingestion.py
+│   └── test_uploaded_retrieval.py
+│
+├── src/
+│   ├── evaluation/
+│   ├── generation/
+│   ├── indexing/
+│   ├── ingestion/
+│   ├── logging/
+│   ├── retrieval/
+│   └── services/
+│
+├── Dockerfile
+├── pyproject.toml
+├── uv.lock
+├── logo.png
+└── README.md
 ```
 
-Install dependencies:
+---
 
-```bash
-uv sync
+## Tech Stack
+
+| Layer                  | Technology                        |
+| ---------------------- | --------------------------------- |
+| UI                     | Streamlit                         |
+| LLM Runtime            | Ollama                            |
+| Generation Model       | `qwen3.5:0.8b`                    |
+| Embedding Model        | `qwen3-embedding:4b`              |
+| Vector Database        | Qdrant                            |
+| Sparse Retrieval       | BM25                              |
+| Reranking              | SentenceTransformers CrossEncoder |
+| Reranker Model         | `Qwen/Qwen3-Reranker-0.6B`        |
+| Document Processing    | Docling                           |
+| OCR / Image Extraction | Docling-supported OCR             |
+| Monitoring             | Prometheus + Grafana              |
+| Dependency Management  | uv                                |
+| Containerization       | Docker Compose                    |
+
+---
+
+## Required Ollama Models
+
+The project uses local Ollama models.
+
+Required models:
+
+```txt
+qwen3-embedding:4b
+qwen3.5:0.8b
 ```
 
-Run Python commands through uv:
+Pull them inside the Ollama container:
 
 ```bash
-uv run python -m src.retrieval.model_router
+docker exec -it telecom_ollama ollama pull qwen3-embedding:4b
+docker exec -it telecom_ollama ollama pull qwen3.5:0.8b
 ```
 
-Dependencies are defined in `pyproject.toml`. `requirements.txt` is only a pointer for uv-based setup.
-
-## Git Workflow and Branching Strategy
-
-Create or switch to a feature branch before each implementation phase:
+Check installed models:
 
 ```bash
-git checkout -b feature/local-foundation
+docker exec -it telecom_ollama ollama list
 ```
 
-Recommended branches:
+Expected output should include:
 
-- `main`: stable, demo-ready branch.
-- `develop`: integration branch for completed phases.
-- `feature/<short-name>`: new feature work.
-- `fix/<short-name>`: bug fixes.
-- `experiment/<short-name>`: temporary experiments.
-- `docs/<short-name>`: documentation-only changes.
-
-Commit after each working phase with small meaningful commits. Never commit `.env`, uploads, logs, generated indexes, Qdrant storage, Ollama storage, Grafana storage, local database files, cache files, model files, or large binary artifacts.
-
-After this task, a human developer can run:
-
-```bash
-git status
-git add .
-git commit -m "chore: add local foundation infrastructure"
+```txt
+qwen3-embedding:4b
+qwen3.5:0.8b
 ```
 
-See `docs/git_workflow.md` for the full workflow and checklist.
+The architecture supports model routing across small, medium, and large generation models.
+For the lightweight local demo, the generation tiers can all point to `qwen3.5:0.8b` to reduce hardware requirements.
 
-## Starting Infrastructure
+---
 
-Start local infrastructure:
+## Quickstart with Docker
 
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-Check containers:
-
-```bash
-docker ps
-```
-
-Check Qdrant:
-
-```bash
-curl http://localhost:6333
-```
-
-Check Ollama:
-
-```bash
-curl http://localhost:11434/api/tags
-```
-
-Open services:
-
-- Qdrant: http://localhost:6333/dashboard
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000
-
-The final reviewer flow will eventually be:
+Start the full demo:
 
 ```bash
 docker compose -f docker/docker-compose.yml up --build
 ```
 
-During current development, indexing and app startup are still run manually until later phases are completed.
+Then open:
 
-## Ollama Models
+```txt
+http://localhost:8501
+```
 
-Pull models manually after the Ollama container is running:
+Main services:
+
+| Service          | URL                             |
+| ---------------- | ------------------------------- |
+| Streamlit App    | <http://localhost:8501>           |
+| Qdrant Dashboard | <http://localhost:6333/dashboard> |
+| Ollama           | <http://localhost:11434>          |
+| Prometheus       | <http://localhost:9090>           |
+| Grafana          | <http://localhost:3000>           |
+
+Default Grafana login:
+
+```txt
+username: admin
+password: admin
+```
+
+If the Ollama models are not installed yet, pull them:
 
 ```bash
 docker exec -it telecom_ollama ollama pull qwen3-embedding:4b
 docker exec -it telecom_ollama ollama pull qwen3.5:0.8b
-docker exec -it telecom_ollama ollama pull qwen3.5:2b
-docker exec -it telecom_ollama ollama pull qwen3:4b
 ```
 
-Linux/macOS/Git Bash users can run:
+---
+
+## Run Streamlit Locally
+
+For development, you can run infrastructure in Docker and Streamlit locally.
+
+Start infrastructure without the containerized Streamlit app:
 
 ```bash
-scripts/pull_ollama_models.sh
+docker compose -f docker/docker-compose.yml up -d qdrant ollama prometheus grafana
 ```
 
-Windows PowerShell users can run the `docker exec` commands manually if shell script execution is not available.
-
-## Reviewer Quick Start
-
-1. Clone the repository.
-2. Copy `config/.env.example` to `config/.env`.
-3. Run `uv venv`.
-4. Run `uv sync`.
-5. Start infrastructure with `docker compose -f docker/docker-compose.yml up -d`.
-6. Pull the Ollama models manually.
-7. Run `uv run python -m src.services.ollama_client`.
-8. Run `uv run python -m src.retrieval.model_router`.
-
-Expected future final flow:
-
-1. Clone repo.
-2. Copy `.env.example` to `.env`.
-3. Run Docker Compose.
-4. Pull Ollama models.
-5. Build unified KB.
-6. Build Qdrant index.
-7. Build BM25 index.
-8. Run Streamlit app.
-9. Open http://localhost:8501.
-
-## Developer Setup
-
-Use `config/.env.example` as the source of supported environment variables. The typed settings object is exposed as `settings` from `config.settings`.
-
-Useful checks:
-
-```bash
-uv run python -m src.services.ollama_client
-uv run python -m src.retrieval.model_router
-```
-
-Docker commands should be run manually by the developer. Application code should not pull models or start infrastructure automatically.
-
-## Observability with Prometheus and Grafana
-
-The local Streamlit/RAG process exposes Prometheus metrics on port `8001` by default. Prometheus runs in Docker and scrapes the local app at `host.docker.internal:8001`. Metrics are not shown to end users in the Streamlit UI.
-
-The Grafana container auto-provisions a Prometheus datasource and a dashboard named **Telecom Egypt RAG Observability**. The dashboard tracks query volume, latency, fallbacks, errors, reranking, retrieval requests, and citation quality.
-
-Start infrastructure:
-
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-Run the Streamlit app:
+Run Streamlit:
 
 ```bash
 uv run streamlit run app/streamlit_app.py
 ```
 
-Open services:
+Open:
 
-- Streamlit: http://localhost:8501
-- Metrics endpoint: http://localhost:8001/metrics
-- Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000
-
-Default Grafana credentials are `admin` / `admin`.
-
-Useful Prometheus query:
-
-```text
-telecom_rag_queries_total
+```txt
+http://localhost:8501
 ```
 
-If port `8001` is busy, change `RAG_METRICS_PORT` in `config/.env`. On Windows, `host.docker.internal` lets Prometheus scrape the locally running Streamlit process. Linux users may need Docker host networking or an `extra_hosts` mapping for equivalent host access.
+In local mode:
 
-## Cost Optimization Plan
+```env
+QDRANT_URL=http://localhost:6333
+OLLAMA_BASE_URL=http://localhost:11434
+```
 
-Cost and latency controls are scaffolded in this order:
+In Docker mode:
 
-- Exact cache
-- Semantic cache
-- Embedding cache
-- Prompt cache
-- Context compression
-- Model routing
-- Model fallback
+```env
+QDRANT_URL=http://qdrant:6333
+OLLAMA_BASE_URL=http://ollama:11434
+```
 
-Only in-memory exact and embedding cache scaffolding exists now. Semantic cache and prompt cache are placeholders for later integration.
+---
 
-## Model Routing Plan
+## Build the Knowledge Base and Indexes
 
-Rule-based routing is implemented first:
+The official knowledge base is built from processed JSONL files.
 
-- Simple factual Q&A -> `qwen3.5:0.8b`
-- Normal RAG answers -> `qwen3.5:2b`
-- Complex reasoning/comparison/upload analysis -> `qwen3:4b`
+Current source registry:
 
-LLM-based routing may be added later after the rule-based baseline is validated.
+```txt
+config/kb_sources.yaml
+```
 
-## Future Data Expansion
-
-More Telecom Egypt website data can be added later through:
-
-- A new processed JSONL category file.
-- A new entry in `config/kb_sources.yaml`.
-- The unified KB builder.
-- Re-indexing or incremental Qdrant upsert.
-- BM25 rebuild or incremental update.
-- Evaluation regression tests.
-
-## Knowledge Base and Indexing Workflow
-
-Build the unified official KB:
+Build unified KB:
 
 ```bash
 uv run python scripts/build_unified_kb.py
@@ -278,36 +458,74 @@ Build chunks:
 uv run python scripts/build_chunks.py
 ```
 
-Start infrastructure:
-
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-Pull the embedding model if needed:
-
-```bash
-docker exec -it telecom_ollama ollama pull qwen3-embedding:4b
-```
-
-Build the Qdrant dense vector index:
-
-```bash
-uv run python scripts/build_qdrant_index.py
-```
-
-Build the BM25 keyword index:
+Build BM25 index:
 
 ```bash
 uv run python scripts/build_bm25_index.py
 ```
 
-Qdrant stores dense vectors generated from chunk `index_text` using `qwen3-embedding:4b`. BM25 stores a keyword index over the same `index_text`. Future retrieval will combine Qdrant and BM25 results with reciprocal rank fusion. `content` remains the display and answer-generation text, while citations come from `citation_url`.
+Build Qdrant vector index:
 
-More website data can be added without changing the RAG architecture:
+```bash
+uv run python scripts/build_qdrant_index.py --recreate true --batch-size 1
+```
 
-1. Add a processed file such as `data/processed/mobile/mobile_post_processed.jsonl`.
-2. Add a YAML source entry:
+Generated artifacts include:
+
+```txt
+data/knowledge_base/telecom_egypt_kb_v1.jsonl
+data/knowledge_base/telecom_egypt_kb_v1_chunks.jsonl
+data/indexes/bm25_official_kb_v1.pkl
+data/indexes/bm25_manifest_v1.json
+data/indexes/qdrant_index_manifest_v1.json
+```
+
+If official KB retrieval does not work in Docker, the Qdrant collection `telecom_all_sources_v1` is probably missing from the Qdrant volume. BM25 and chunk files live under `data/indexes` and `data/knowledge_base`, but Qdrant vectors live in Qdrant storage and must be created with:
+
+```bash
+uv run python scripts/build_unified_kb.py
+uv run python scripts/build_chunks.py
+uv run python scripts/build_bm25_index.py
+uv run python scripts/build_qdrant_index.py --recreate true --batch-size 1
+```
+
+Then restart the Streamlit container:
+
+```bash
+docker compose -f docker/docker-compose.yml restart streamlit-app
+```
+
+Qdrant vector indexing uses the local Ollama embedding model and can take time.
+
+Important rule:
+
+```txt
+Never mix embedding models between indexing and querying.
+```
+
+The official KB was indexed using:
+
+```txt
+qwen3-embedding:4b
+```
+
+So query embeddings must use the same embedding model.
+
+---
+
+## Knowledge Base Expansion
+
+To add more website sections later:
+
+1. Scrape and post-process a new section.
+2. Save it as a processed JSONL file.
+3. Add it to:
+
+```txt
+config/kb_sources.yaml
+```
+
+Example:
 
 ```yaml
 - category: mobile
@@ -316,67 +534,33 @@ More website data can be added without changing the RAG architecture:
   description: Mobile bundles, add-ons, and offers
 ```
 
-3. Rebuild:
+Then rebuild:
 
 ```bash
 uv run python scripts/build_unified_kb.py
 uv run python scripts/build_chunks.py
-uv run python scripts/build_qdrant_index.py
 uv run python scripts/build_bm25_index.py
+uv run python scripts/build_qdrant_index.py --recreate true --batch-size 1
 ```
 
-## Retrieval Testing
+This design makes future data expansion a configuration-level change instead of a full architecture rewrite.
 
-Phase 4 implements terminal-testable retrieval only. It does not generate answers, run Streamlit, process uploads, use Docling, use Redis, use semantic cache, or run a reranker model yet.
+---
 
-Dense retrieval uses Qdrant with local Ollama query embeddings from `qwen3-embedding:4b`. BM25 keyword retrieval uses `data/indexes/bm25_official_kb_v1.pkl`. Hybrid retrieval combines dense and BM25 hits with reciprocal rank fusion, then applies small metadata-aware boosts for service codes, prices, WE Home packages, devices, and language hints. Returned rows are ranked chunks with citations.
+## Test Retrieval
 
-Run individual retrieval checks:
+Run terminal retrieval tests:
 
 ```bash
-uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?"
 uv run python scripts/test_retrieval.py "كود معرفة الرصيد كام؟"
-uv run python scripts/test_retrieval.py "ازاي أعرف رصيدي؟"
+```
+
+```bash
 uv run python scripts/test_retrieval.py "What is the SIM swap cost?"
-uv run python scripts/test_retrieval.py "سعر راوتر TP-Link كام؟"
+```
+
+```bash
 uv run python scripts/test_retrieval.py "What are WE Space recharge add-ons?"
-```
-
-Useful options:
-
-```bash
-uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --debug
-uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --json
-uv run python scripts/test_retrieval.py "What is the SIM swap cost?" --show-content
-```
-
-Run the retrieval eval:
-
-```bash
-uv run python scripts/run_retrieval_eval.py
-```
-
-The eval creates `data/evaluation/golden_queries_v1.jsonl` if it does not exist and writes `data/evaluation/retrieval_eval_results_v1.csv`.
-
-Success criteria:
-
-- Correct category appears in the top 5 where a category is expected.
-- Expected answer tokens appear in the top 5.
-- Citation URL is present and matches expected source hints where provided.
-- Out-of-scope queries are rejected by the router.
-
-## Reranking Layer
-
-Phase 5 adds an optional reranking layer after hybrid retrieval. Hybrid retrieval first collects and boosts candidate chunks, then the reranker re-scores query and candidate-text pairs before final top-K selection.
-
-The default reranker is `Qwen/Qwen3-Reranker-0.6B`, loaded through SentenceTransformers `CrossEncoder`. It is not loaded through Ollama and does not use generation-style reranking. The first run may download the model from Hugging Face. If reranking is disabled or model loading fails in non-strict mode, retrieval falls back to the boosted hybrid results.
-
-Reranking is useful when the correct chunk is retrieved but not ranked first, such as similar WE Space yearly-package rows with the same quota but different speeds and prices.
-
-Baseline without reranking:
-
-```bash
-uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?" --no-rerank
 ```
 
 With reranking:
@@ -385,115 +569,505 @@ With reranking:
 uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?" --rerank
 ```
 
-Arabic reranking check:
+Without reranking:
 
 ```bash
-uv run python scripts/test_retrieval.py "كود معرفة الرصيد كام؟" --rerank
+uv run python scripts/test_retrieval.py "What is the yearly fee for WE Space Mega 3000 GB?" --no-rerank
 ```
 
-Run baseline versus reranked eval comparison:
+---
 
-```bash
-uv run python scripts/run_retrieval_eval.py --compare
-```
+## Test Generation
 
-Reranking can be disabled with `ENABLE_RERANKING=false` in `config/.env`. The model can be changed with `RERANKER_MODEL`; the configured fallback model is `BAAI/bge-reranker-v2-m3`. If model loading or download stalls, `RERANK_LOAD_TIMEOUT_SECONDS` bounds the attempt before falling back to hybrid retrieval.
-
-## Answer Generation with Citations
-
-Phase 6 adds terminal-only RAG answer generation. Retrieval provides ranked sources, the answer generator assembles numbered context, and a local Ollama generation model produces an answer grounded in those sources.
-
-Every factual claim should cite numbered source markers such as `[1]` or `[2]`. The source list is appended after the answer. If the available official sources are insufficient, the system should say that the information was not found. If the model output lacks valid citations or generation fails, the system retries with a stronger configured Ollama model when enabled, then falls back to a deterministic grounded answer from the top source.
-
-Run generation checks:
+Run terminal generation tests:
 
 ```bash
 uv run python scripts/test_generation.py "كود معرفة الرصيد كام؟"
-uv run python scripts/test_generation.py "ازاي أعرف رصيدي؟"
+```
+
+```bash
 uv run python scripts/test_generation.py "What is the SIM swap cost?"
+```
+
+```bash
 uv run python scripts/test_generation.py "What are WE Space recharge add-ons?"
-uv run python scripts/test_generation.py "What is the yearly fee for WE Space Mega 3000 GB?"
+```
+
+Out-of-scope example:
+
+```bash
 uv run python scripts/test_generation.py "Compare Vodafone and WE prices"
 ```
 
-Useful options:
+The answer generator:
+
+* Uses retrieved sources.
+* Requires citations.
+* Falls back to deterministic grounded answers if the local model fails or omits citations.
+* Appends source references.
+
+---
+
+## Test Uploaded Documents
+
+Create a simple test file:
 
 ```bash
-uv run python scripts/test_generation.py "What is the SIM swap cost?" --show-sources
-uv run python scripts/test_generation.py "What is the SIM swap cost?" --show-retrieval
-uv run python scripts/test_generation.py "What is the SIM swap cost?" --json
-uv run python scripts/test_generation.py "What is the SIM swap cost?" --no-rerank
-```
-
-Run generation eval:
-
-```bash
-uv run python scripts/run_generation_eval.py
-```
-
-Known issue: some WE Home yearly package metadata needs a future post-processing cleanup. The full pipeline is being completed first, then the website data and WE Home records will be cleaned and re-indexed.
-
-## Troubleshooting
-
-If answer generation reaches Ollama but times out, increase `OLLAMA_TIMEOUT_SECONDS` in `config/.env`. You can also reduce `GENERATION_MAX_CONTEXT_SOURCES` or `GENERATION_MAX_CONTEXT_CHARS` to send a smaller prompt. To shorten model output, lower `OLLAMA_GENERATION_NUM_PREDICT`.
-
-## Streamlit End-User UI
-
-The Streamlit app is the public-facing chat UI for end users. It shows only the conversation, final answers, and citation/source cards. It hides internal pipeline details such as model names, fallback state, reranking, retrieval scores, route metadata, and debug payloads.
-
-The UI can answer from official Telecom Egypt sources, uploaded documents, or both.
-
-Required local services:
-
-- Qdrant must be running.
-- Ollama must be running.
-- Required models should be pulled: `qwen3-embedding:4b` and `qwen3.5:0.8b`.
-
-Start infrastructure:
-
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-Run the app:
-
-```bash
-uv run streamlit run app/streamlit_app.py
-```
-
-Then open:
-
-```text
-http://localhost:8501
-```
-
-## Uploaded Documents with Docling
-
-Users can upload PDF, DOCX, TXT, HTML, and common image files. Documents are converted locally using Docling where supported; TXT and HTML also have lightweight local fallbacks. The first Docling run may take time, and OCR/image processing can be slower.
-
-Uploaded document chunks are stored locally under `data/uploads`, inserted into Qdrant with `source_type=user_upload`, and indexed into a per-session BM25 index. Retrieval over uploads uses hybrid dense + BM25 retrieval, the same retrieval pattern as the official WE knowledge base. In `Both` mode, official hybrid results and uploaded hybrid results are fused before answer generation.
-
-Uploaded documents are scoped to the current demo session. Uploaded files are local runtime data and must not be committed.
-
-Run Streamlit:
-
-```bash
-uv run streamlit run app/streamlit_app.py
+echo "This is a test document. The contract value is 500 EGP." > data/uploads/test_doc.txt
 ```
 
 Test upload ingestion:
 
 ```bash
-uv run python scripts/test_upload_ingestion.py path/to/file.pdf
+uv run python scripts/test_upload_ingestion.py data/uploads/test_doc.txt
 ```
 
-Test uploaded retrieval:
+Test uploaded retrieval and generation:
 
 ```bash
-uv run python scripts/test_uploaded_retrieval.py path/to/file.pdf "What is this document about?"
+uv run python scripts/test_uploaded_retrieval.py data/uploads/test_doc.txt "What is the contract value?"
 ```
 
-## Next Implementation Phases
+Expected answer:
 
-- Upload evaluation and regression checks.
-- Future FastAPI backend and Dockerized app runtime.
+```txt
+The uploaded document says: "The contract value is 500 EGP." [1]
+```
+
+Expected source:
+
+```txt
+[1] Uploaded document — test_doc.txt
+```
+
+You can also test screenshots/images through the Streamlit interface:
+
+1. Open the app.
+2. Upload an image or screenshot.
+3. Select **Uploaded documents**.
+4. Ask:
+
+```txt
+What is written in this image?
+```
+
+Uploaded document retrieval uses hybrid retrieval:
+
+```txt
+uploaded dense Qdrant retrieval + uploaded BM25 retrieval
+```
+
+---
+
+## Source Modes
+
+The Streamlit app supports three source modes:
+
+| Mode                | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| Official WE sources | Search only official Telecom Egypt website data         |
+| Uploaded documents  | Search only documents uploaded in the current session   |
+| Both                | Search official sources and uploaded documents together |
+
+Uploaded documents are scoped to the current session.
+
+---
+
+## Prometheus and Grafana Observability
+
+The app exposes Prometheus metrics for the RAG pipeline.
+
+In Dockerized reviewer mode, Prometheus scrapes `streamlit-app:8001`. If you run Streamlit locally outside Docker, change the `rag_app` target in `docker/prometheus.yml` to `host.docker.internal:8001`.
+
+Metrics endpoint:
+
+```txt
+http://localhost:8001/metrics
+```
+
+Prometheus:
+
+```txt
+http://localhost:9090
+```
+
+Grafana:
+
+```txt
+http://localhost:3000
+```
+
+Grafana dashboard:
+
+```txt
+Telecom Egypt RAG Observability
+```
+
+Tracked metrics include:
+
+* Total queries.
+* Query rate.
+* Retrieval latency.
+* Generation latency.
+* Total answer latency.
+* Answer status.
+* Fallback reasons.
+* Errors by stage.
+* Reranking usage.
+* Citation quality.
+* Last query source count.
+
+Example Prometheus query:
+
+```promql
+telecom_rag_queries_total
+```
+
+Another example:
+
+```promql
+sum by (status) (telecom_rag_answers_total)
+```
+
+---
+
+## Evaluation and Validation
+
+The project includes validation scripts for generation, uploads, and observability.
+
+### Generation Evaluation
+
+Run:
+
+```bash
+uv run python scripts/run_generation_eval.py
+```
+
+Output:
+
+```txt
+data/evaluation/generation_eval_results_v1.csv
+```
+
+The generation evaluation checks:
+
+* Route behavior.
+* Citation validity.
+* Expected answer token presence.
+* Fallback behavior.
+* Generation errors.
+
+---
+
+### Uploaded Document Validation
+
+The uploaded document pipeline was validated with:
+
+* TXT upload ingestion.
+* TXT question answering.
+* Image/screenshot OCR test.
+* Uploaded document citation formatting.
+* Source mode: Uploaded documents.
+* Source mode: Both.
+
+Example tested case:
+
+```txt
+Document:
+This is a test document. The contract value is 500 EGP.
+
+Question:
+What is the contract value?
+
+Answer:
+The uploaded document says: "The contract value is 500 EGP." [1]
+
+Source:
+[1] Uploaded document — test_doc.txt
+```
+
+---
+
+### Observability Validation
+
+The observability stack was validated through:
+
+| Component                                 | Result |
+| ----------------------------------------- | ------ |
+| Streamlit metrics endpoint                | Passed |
+| Prometheus `rag_app` target               | Passed |
+| Grafana datasource provisioning           | Passed |
+| Grafana dashboard provisioning            | Passed |
+| Query metrics update after user questions | Passed |
+
+---
+
+## Cost Optimization Strategy
+
+The system includes several cost and latency optimization strategies.
+
+### Query Routing
+
+The router detects whether a query should go to retrieval, clarification, or rejection.
+
+Example:
+
+```txt
+Compare Vodafone and WE prices
+```
+
+This can be rejected as out-of-scope in official-only mode without unnecessary generation.
+
+---
+
+### Pipeline Routing
+
+The architecture supports different pipeline depths:
+
+| Query Type           | Pipeline                                      |
+| -------------------- | --------------------------------------------- |
+| Simple factual query | Fast retrieval path                           |
+| Medium query         | Standard hybrid retrieval                     |
+| Complex query        | Larger retrieval depth and optional reranking |
+
+---
+
+### Model Routing
+
+The architecture supports routing across:
+
+```txt
+small model → simple questions
+medium model → normal questions
+large model → complex reasoning
+```
+
+For the local demo, all generation tiers can be mapped to:
+
+```txt
+qwen3.5:0.8b
+```
+
+This keeps reviewer setup lightweight while preserving the model-routing architecture.
+
+---
+
+### Hybrid Retrieval Before Generation
+
+Hybrid retrieval reduces the number of chunks sent to the model.
+
+Instead of sending large documents, the system retrieves only the most relevant chunks using:
+
+```txt
+Qdrant dense search + BM25 keyword search + RRF fusion
+```
+
+---
+
+### Context Compression
+
+The answer generator compresses retrieved sources before generation.
+
+It preserves important facts such as:
+
+* Codes
+* Prices
+* Fees
+* Quotas
+* Speeds
+* Citations
+
+This reduces prompt size and improves response latency.
+
+---
+
+### Optional Reranking
+
+Reranking improves precision but can be slower on CPU.
+
+The system supports optional reranking through:
+
+```txt
+Qwen/Qwen3-Reranker-0.6B
+```
+
+If reranking is unavailable or disabled, the system falls back to hybrid retrieval.
+
+---
+
+### Deterministic Grounded Fallback
+
+If generation fails, times out, or omits citations, the system returns a deterministic answer from retrieved sources.
+
+This improves safety and avoids hallucinated, uncited answers.
+
+---
+
+### Future Caching
+
+The project includes cache-related configuration flags and is designed to support:
+
+* Exact query caching.
+* Semantic caching.
+* Prompt caching.
+* Embedding caching.
+* Uploaded file hash caching.
+
+A future production version can use Redis for exact caching and Qdrant for semantic cache lookup.
+
+---
+
+## Future Improvements
+
+### Full Website Coverage
+
+The current system is designed so more Telecom Egypt website sections can be added through the source registry.
+
+Future sections may include:
+
+* Mobile packages.
+* Business services.
+* Offers.
+* Support pages.
+* Payment pages.
+* Branches.
+* Policies.
+* Remaining product/service pages.
+
+The expansion process is:
+
+```txt
+scrape new section
+→ post-process to JSONL
+→ add to config/kb_sources.yaml
+→ rebuild unified KB
+→ rebuild chunks
+→ rebuild BM25
+→ rebuild Qdrant
+→ rerun validation
+```
+
+---
+
+### Agentic Telecom Advisor
+
+A future version can add an agentic layer on top of the RAG system.
+
+Current system:
+
+```txt
+User asks → retrieve official sources → answer with citations
+```
+
+Future agentic system:
+
+```txt
+User asks → retrieve official data + understand user context → compare options → suggest next best action
+```
+
+Example:
+
+```txt
+User:
+What is the Max plan?
+
+Current RAG answer:
+Explains Max plan details.
+
+Future agentic answer:
+Explains the Max plan, compares it with the user's current package and usage, then asks whether the user wants to upgrade, renew, or explore alternatives.
+```
+
+Possible future agents:
+
+* Plan Recommendation Agent.
+* Billing Support Agent.
+* Troubleshooting Agent.
+* Uploaded Document Analysis Agent.
+* Action Agent for renewals, upgrades, or support tickets after user confirmation.
+
+Important: any real account action should require explicit user confirmation.
+
+---
+
+### Stronger Production Deployment
+
+Future deployment improvements may include:
+
+* FastAPI backend.
+* Authentication.
+* User/session management.
+* Persistent uploaded document collections.
+* Redis caching.
+* Advanced semantic cache.
+* Role-based access.
+* Production logging.
+* GPU acceleration for embeddings/reranking/generation.
+* CI/CD pipeline.
+* Cloud or on-premise Kubernetes deployment.
+
+---
+
+## Useful Commands
+
+Start full Docker demo:
+
+```bash
+docker compose -f docker/docker-compose.yml up --build
+```
+
+Start infrastructure only:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d qdrant ollama prometheus grafana
+```
+
+Run Streamlit locally:
+
+```bash
+uv run streamlit run app/streamlit_app.py
+```
+
+Pull Ollama models:
+
+```bash
+docker exec -it telecom_ollama ollama pull qwen3-embedding:4b
+docker exec -it telecom_ollama ollama pull qwen3.5:0.8b
+```
+
+Build official KB:
+
+```bash
+uv run python scripts/build_unified_kb.py
+uv run python scripts/build_chunks.py
+uv run python scripts/build_bm25_index.py
+uv run python scripts/build_qdrant_index.py --recreate true --batch-size 1
+```
+
+Test official answer generation:
+
+```bash
+uv run python scripts/test_generation.py "كود معرفة الرصيد كام؟"
+```
+
+Test uploaded document RAG:
+
+```bash
+uv run python scripts/test_uploaded_retrieval.py data/uploads/test_doc.txt "What is the contract value?"
+```
+
+Open services:
+
+```txt
+Streamlit:   http://localhost:8501
+Qdrant:      http://localhost:6333/dashboard
+Prometheus:  http://localhost:9090
+Grafana:     http://localhost:3000
+Ollama:      http://localhost:11434
+```
+
+---
+
+## License
+
+This project is developed as a technical assessment/demo project for a local RAG assistant over Telecom Egypt / WE data and uploaded documents.
