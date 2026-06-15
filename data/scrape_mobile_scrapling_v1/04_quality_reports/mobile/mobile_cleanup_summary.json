@@ -1,0 +1,46 @@
+{
+  "accepted_records": 868,
+  "cleaned_records": 878,
+  "counts_by_language": {
+    "ar": 568,
+    "en": 310
+  },
+  "counts_by_mobile_category": {
+    "control_plans": 282,
+    "mobile_internet": 453,
+    "postpaid": 84,
+    "prepaid": 56,
+    "value_added_services": 3
+  },
+  "counts_by_record_type": {
+    "package": 490,
+    "plan": 370,
+    "service_code": 3,
+    "terms": 15
+  },
+  "kix_units_extracted_count": 114,
+  "partial_code_replaced_count": 131,
+  "possible_issue_count": 10,
+  "quota_from_consumption_rule_removed_count": 113,
+  "rejected_records": 10,
+  "top_quality_flags": {
+    "consumption_rules_extracted": 114,
+    "content_rebuilt_clean": 878,
+    "index_text_built": 878,
+    "kix_units_extracted": 114,
+    "language_mismatch": 111,
+    "missing_useful_content": 10,
+    "partial_code_replaced": 131,
+    "possible_partial_code": 2,
+    "quota_from_consumption_rule_removed": 113,
+    "rejected_low_quality": 10,
+    "scrapling_static_fetch": 878,
+    "search_aliases_enriched": 878,
+    "subscription_code_extracted": 686,
+    "subscription_code_normalized": 421,
+    "ui_noise_removed": 683,
+    "ui_noise_title_replaced": 238
+  },
+  "total_records": 878,
+  "ui_noise_removed_count": 683
+}

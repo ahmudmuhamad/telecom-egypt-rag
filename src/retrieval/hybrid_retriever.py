@@ -362,6 +362,7 @@ class HybridRetriever:
         results: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         normalized_query = self.normalize_query_for_matching(query)
+        entity_tokens = self.extract_query_entity_tokens(query)
         boosted: list[dict[str, Any]] = []
         for result in results:
             item = dict(result)
@@ -375,6 +376,28 @@ class HybridRetriever:
             record_type = str(item.get("record_type") or "").lower()
             category = str(item.get("category") or "").lower()
             boost = 0.0
+            if entity_tokens:
+                raw_content = " ".join(
+                    str(part or "")
+                    for part in (
+                        item.get("title"),
+                        item.get("content"),
+                        item.get("index_text"),
+                        metadata.get("product_name"),
+                        metadata.get("brand"),
+                        metadata.get("model"),
+                        " ".join(str(alias) for alias in metadata.get("search_aliases") or []),
+                    )
+                ).lower()
+                title_text = str(item.get("title") or "").lower()
+                entity_matches = sum(1 for token in entity_tokens if token.lower() in raw_content)
+                title_matches = sum(1 for token in entity_tokens if token.lower() in title_text)
+                if entity_matches:
+                    boost += min(0.18, 0.05 * entity_matches)
+                if title_matches == len(entity_tokens):
+                    boost += 0.12
+                if category == "devices":
+                    boost += 0.08
 
             if item.get("source_type") == "user_upload":
                 query_tokens = {
@@ -447,7 +470,7 @@ class HybridRetriever:
                     boost += 0.02
 
             boost += self._language_boost(normalized_query, item)
-            item["boost_score"] = round(min(boost, 0.10), 6)
+            item["boost_score"] = round(min(boost, 0.35), 6)
             item["final_score"] = float(item.get("rrf_score") or 0.0) + item["boost_score"]
             boosted.append(item)
 
@@ -459,6 +482,27 @@ class HybridRetriever:
         normalized = re.sub(r"[\u0622\u0623\u0625]", "\u0627", normalized)
         normalized = re.sub(r"\s+", " ", normalized).strip()
         return normalized
+
+    def extract_query_entity_tokens(self, query: str) -> list[str]:
+        tokens: list[str] = []
+        for match in re.findall(r"\b[A-Z][A-Za-z0-9-]{2,}\b", query or ""):
+            tokens.append(match)
+        for match in re.findall(
+            r"\b(?=[A-Za-z0-9-]*[A-Za-z])(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{3,}\b",
+            query or "",
+        ):
+            tokens.append(match)
+        for token in ("DEX", "Cordless", "D1005", "VN020", "ZXHN", "Huawei", "ZTE", "TP-Link"):
+            if token.lower() in (query or "").lower():
+                tokens.append(token)
+        seen: set[str] = set()
+        output: list[str] = []
+        for token in tokens:
+            key = token.lower()
+            if key not in seen:
+                seen.add(key)
+                output.append(token)
+        return output
 
     def _top_k_from_route(
         self,

@@ -1,0 +1,479 @@
+{
+  "failed_urls": [],
+  "fetched": {
+    "https://te.eg/ar/nitro-extra?filterBy=streaming": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/nitro-extra?filterBy=streaming",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_nitro-extra_filterBy_streaming_6f4e2a4295.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\listing_pages\\te.eg__ar_personal_mobile_8395be57bf.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/control-tazbeet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/control-tazbeet",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_control-tazbeet_31a518e8d1.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/control-we-mix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/control-we-mix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_control-we-mix_4e0e366fba.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/control/super-kix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/control/super-kix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_control_super-kix_a3fd53d5fe.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\listing_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_50282b4a48.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/nitro-extra": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/nitro-extra",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_nitro-extra_19662bbb3f.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=589164": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=589164",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_589164_3dc0477130.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=590626": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=590626",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_590626_c9b69b7737.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=590741": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=590741",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_590741_5b6f44bc9a.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591698": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591698",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_591698_0dc2d2b01a.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591851": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591851",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_591851_1555314236.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591883": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591883",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_591883_61b54fdcc3.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591906": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/nitro-mobile-internet/prime?pid=&qid=Nitro%20Prime&cid=591906",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_nitro-mobile-internet_prime_pid_qid_Nitro_20Prime_cid_591906_c79558759d.html",
+      "status": 200
+    },
+    "https://te.eg/ar/personal/mobile/prepaid/12pt": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/personal/mobile/prepaid/12pt",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_personal_mobile_prepaid_12pt_481386e0c6.html",
+      "status": 200
+    },
+    "https://te.eg/ar/w/super-kix-25": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/w/super-kix-25",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_w_super-kix-25_d47b145c97.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/nitro-mifi": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/nitro-mifi",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_nitro-mifi_f9f9efa870.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/control": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/control",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\listing_pages\\te.eg__ar_web_guest_personal_mobile_control_e14680710b.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/control-tazbeet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/control-tazbeet",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_control-tazbeet_632369f255.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/control-we-club": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/control-we-club",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_control-we-club_ade41704a8.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/control-we-mix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/control-we-mix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_control-we-mix_f8b7a8e0ff.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/control/super-kix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/control/super-kix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_control_super-kix_6bf996f5fc.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-exclusive": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-exclusive",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_nitro-mobile-internet_nitro-exclusive_e77f581b73.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-extra": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-extra",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_nitro-mobile-internet_nitro-extra_50d0efbbc0.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-x": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/nitro-x",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_nitro-mobile-internet_nitro-x_cded7fadc0.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/prime": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/nitro-mobile-internet/prime",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_nitro-mobile-internet_prime_04ea220727.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/prepaid": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/prepaid",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\listing_pages\\te.eg__ar_web_guest_personal_mobile_prepaid_027c279383.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/prepaid/12pt": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/prepaid/12pt",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_prepaid_12pt_36502e4665.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/prepaid/agda3-sha7na": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/prepaid/agda3-sha7na",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_prepaid_agda3-sha7na_cfca00be24.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/mobile/we-gold": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/mobile/we-gold",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_personal_mobile_we-gold_6b8dd3103f.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/personal/services/mobile-call-services": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/personal/services/mobile-call-services",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\listing_pages\\te.eg__ar_web_guest_personal_services_mobile-call-services_2d63277062.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/w/nitro-mifi-260?pid=&qid=Nitro%20MiFi&cid=609379": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/w/nitro-mifi-260?pid=&qid=Nitro%20MiFi&cid=609379",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_w_nitro-mifi-260_pid_qid_Nitro_20MiFi_cid_609379_ee0fce33e8.html",
+      "status": 200
+    },
+    "https://te.eg/ar/web/guest/w/we-club-50": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/ar/web/guest/w/we-club-50",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\ar\\detail_pages\\te.eg__ar_web_guest_w_we-club-50_65a92b207d.html",
+      "status": 200
+    },
+    "https://te.eg/en/nitro-extra?filterBy=streaming": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/nitro-mobile-internet/nitro-extra?filterBy=streaming",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_nitro-extra_filterBy_streaming_4e437b8629.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\listing_pages\\te.eg__en_personal_mobile_ccb6560928.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/control-tazbeet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/control-tazbeet",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_personal_mobile_control-tazbeet_23a38c1ce6.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/control-we-mix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/control-we-mix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_personal_mobile_control-we-mix_16cc311dff.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/control/super-kix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/control/super-kix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_personal_mobile_control_super-kix_f568535685.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/nitro-mobile-internet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/nitro-mobile-internet/prime",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\listing_pages\\te.eg__en_personal_mobile_nitro-mobile-internet_75dfb0278d.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/nitro-mobile-internet/nitro-extra": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/nitro-mobile-internet/nitro-extra",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_personal_mobile_nitro-mobile-internet_nitro-extra_a325970eda.html",
+      "status": 200
+    },
+    "https://te.eg/en/personal/mobile/prepaid/12pt": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/personal/mobile/prepaid/12pt",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_personal_mobile_prepaid_12pt_5268f5616d.html",
+      "status": 200
+    },
+    "https://te.eg/en/w/super-kix-25": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/w/super-kix-25",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_w_super-kix-25_b58ec6a704.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/control": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/control",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\listing_pages\\te.eg__en_web_guest_personal_mobile_control_ea38083978.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/control-tazbeet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/control-tazbeet",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_control-tazbeet_eabaabeb76.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/control-we-club": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/control-we-club",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_control-we-club_4d4b8e92e8.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/control-we-mix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/control-we-mix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_control-we-mix_d879591312.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/control/super-kix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/control/super-kix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_control_super-kix_5726d38b99.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/nitro-mifi": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/nitro-mifi",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_nitro-mifi_faa0d6a78c.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-exclusive": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-exclusive",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_nitro-mobile-internet_nitro-exclusive_04a0e269e6.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-extra": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-extra",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_nitro-mobile-internet_nitro-extra_1c80929d35.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-x": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/nitro-x",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_nitro-mobile-internet_nitro-x_608d9ba1bc.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/prime": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/nitro-mobile-internet/prime",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_nitro-mobile-internet_prime_42d803b46e.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/prepaid": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/prepaid",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\listing_pages\\te.eg__en_web_guest_personal_mobile_prepaid_59239ae587.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/prepaid/12pt": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/prepaid/12pt",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_prepaid_12pt_5126260e0b.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/prepaid/agda3-sha7na": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/prepaid/agda3-sha7na",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_prepaid_agda3-sha7na_5b31e98eb2.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/mobile/we-gold": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/mobile/we-gold",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_personal_mobile_we-gold_b209ddd5da.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/personal/services/mobile-call-services": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/personal/services/mobile-call-services",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\listing_pages\\te.eg__en_web_guest_personal_services_mobile-call-services_77b04d7227.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-mifi-260?pid=&qid=Nitro%20MiFi&cid=609379": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-mifi-260?pid=&qid=Nitro%20MiFi&cid=609379",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-mifi-260_pid_qid_Nitro_20MiFi_cid_609379_fef15a401c.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-130-1?pid=&qid=Nitro%20Prime&cid=591851": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-130-1?pid=&qid=Nitro%20Prime&cid=591851",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-130-1_pid_qid_Nitro_20Prime_cid_591851_ce666aef9d.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-13?pid=&qid=Nitro%20Prime&cid=589164": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-13?pid=&qid=Nitro%20Prime&cid=589164",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-13_pid_qid_Nitro_20Prime_cid_589164_73295e6ee3.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-25-1?pid=&qid=Nitro%20Prime&cid=590626": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-25-1?pid=&qid=Nitro%20Prime&cid=590626",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-25-1_pid_qid_Nitro_20Prime_cid_590626_5eb9d957b6.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-260-1?pid=&qid=Nitro%20Prime&cid=591883": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-260-1?pid=&qid=Nitro%20Prime&cid=591883",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-260-1_pid_qid_Nitro_20Prime_cid_591883_d76c55f2de.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-50-1?pid=&qid=Nitro%20Prime&cid=590741": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-50-1?pid=&qid=Nitro%20Prime&cid=590741",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-50-1_pid_qid_Nitro_20Prime_cid_590741_86c39e0027.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-585?pid=&qid=Nitro%20Prime&cid=591906": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-585?pid=&qid=Nitro%20Prime&cid=591906",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-585_pid_qid_Nitro_20Prime_cid_591906_51d201be13.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/nitro-prime-90?pid=&qid=Nitro%20Prime&cid=591698": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/nitro-prime-90?pid=&qid=Nitro%20Prime&cid=591698",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_nitro-prime-90_pid_qid_Nitro_20Prime_cid_591698_890f0fb9b0.html",
+      "status": 200
+    },
+    "https://te.eg/en/web/guest/w/we-club-50": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/en/web/guest/w/we-club-50",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__en_web_guest_w_we-club-50_7466d07a48.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/control": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/control",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_control_232c42e85e.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/control-tazbeet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/control-tazbeet",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_control-tazbeet_e3c58779c5.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/control-we-club": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/control-we-club",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_control-we-club_083f0c01b4.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/control-we-mix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/control-we-mix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_control-we-mix_187ddeee53.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/control/super-kix": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/control/super-kix",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_control_super-kix_1f2b1b31f4.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-exclusive?filterBy=learning": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-exclusive?filterBy=learning",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_nitro-mobile-internet_nitro-exclusive_filterBy_learning_dd11492bde.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-extra?filterBy=streaming": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-extra?filterBy=streaming",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_nitro-mobile-internet_nitro-extra_filterBy_streaming_90d1a46d9a.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-x?filterBy=social": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/nitro-mobile-internet/nitro-x?filterBy=social",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_nitro-mobile-internet_nitro-x_filterBy_social_1539485dd2.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/nitro-mobile-internet/prime": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/nitro-mobile-internet/prime",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_nitro-mobile-internet_prime_d0fa422cf6.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/prepaid": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/prepaid",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_prepaid_92edb12cbd.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/prepaid/12pt": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/prepaid/12pt",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_prepaid_12pt_c6779bf27a.html",
+      "status": 200
+    },
+    "https://te.eg/personal/mobile/prepaid/agda3-sha7na": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/mobile/prepaid/agda3-sha7na",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_mobile_prepaid_agda3-sha7na_6d98b1489c.html",
+      "status": 200
+    },
+    "https://te.eg/personal/services/mobile-call-services": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/personal/services/mobile-call-services",
+      "raw_html_path": "data\\scrape_mobile_scrapling_v1\\01_raw_html\\mobile\\en\\detail_pages\\te.eg__personal_services_mobile-call-services_00f8dd6c40.html",
+      "status": 200
+    }
+  }
+}

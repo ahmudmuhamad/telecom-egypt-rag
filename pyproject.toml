@@ -29,6 +29,7 @@ dependencies = [
     "requests",
     "rich",
     "scikit-learn",
+    "scrapling[fetchers]>=0.4.9",
     "sentence-transformers",
     "streamlit",
     "torch",

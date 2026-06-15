@@ -56,7 +56,7 @@ def format_results_for_generation(
     max_sources: int = 5,
     query: str = "",
 ) -> list[dict[str, Any]]:
-    deduped = deduplicate_sources(prefer_language_sources(results, query))
+    deduped = deduplicate_sources(prefer_generation_sources(results, query))
     sources: list[dict[str, Any]] = []
     for index, result in enumerate(deduped[:max_sources], start=1):
         source = format_source(result, source_id=index)
@@ -204,6 +204,39 @@ def prefer_language_sources(results: list[dict[str, Any]], query: str) -> list[d
     )
 
 
+def prefer_generation_sources(results: list[dict[str, Any]], query: str) -> list[dict[str, Any]]:
+    preferred = _preferred_language(query)
+    entity_tokens = extract_query_entity_tokens(query)
+    is_device_query = _is_device_query(query, entity_tokens)
+
+    def sort_key(result: dict[str, Any]) -> tuple[int, int, int, int, float]:
+        haystack = _result_search_text(result)
+        entity_matches = sum(1 for token in entity_tokens if token.lower() in haystack)
+        title_matches = sum(1 for token in entity_tokens if token.lower() in str(result.get("title") or "").lower())
+        category = str(result.get("category") or "").lower()
+        language = str(result.get("language") or "").lower()
+        language_mismatch = 0 if preferred and language == preferred else 1 if preferred else 0
+        device_mismatch = 0 if is_device_query and category == "devices" else 1 if is_device_query else 0
+        return (
+            -entity_matches,
+            device_mismatch,
+            -title_matches,
+            language_mismatch,
+            -float(result.get("final_score") or result.get("score") or 0.0),
+        )
+
+    ranked = sorted(results, key=sort_key)
+    if entity_tokens:
+        strong_matches = [
+            result
+            for result in ranked
+            if _entity_match_count(result, entity_tokens) == len(entity_tokens)
+        ]
+        if strong_matches:
+            return strong_matches
+    return ranked
+
+
 def clean_user_visible_text(text: str) -> str:
     cleaned_lines: list[str] = []
     skip_prefixes = (
@@ -254,11 +287,78 @@ def _query_keywords(query: str) -> list[str]:
 
 
 def _preferred_language(query: str) -> str | None:
-    if re.search(r"[\u0600-\u06FF]", query or ""):
+    if re.search(r"[\u0600-\u06FF]", query or "") and not extract_query_entity_tokens(query):
         return "ar"
     if re.search(r"[A-Za-z]", query or ""):
         return "en"
     return None
+
+
+def extract_query_entity_tokens(query: str) -> list[str]:
+    tokens: list[str] = []
+    for match in re.findall(r"\b[A-Z][A-Za-z0-9-]{2,}\b", query or ""):
+        tokens.append(match)
+    for match in re.findall(r"\b(?=[A-Za-z0-9-]*[A-Za-z])(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{3,}\b", query or ""):
+        tokens.append(match)
+    known = ("DEX", "Cordless", "D1005", "VN020", "ZXHN", "Huawei", "ZTE", "TP-Link")
+    lowered_query = (query or "").lower()
+    for token in known:
+        if token.lower() in lowered_query:
+            tokens.append(token)
+    seen: set[str] = set()
+    output: list[str] = []
+    for token in tokens:
+        key = token.lower()
+        if key not in seen:
+            seen.add(key)
+            output.append(token)
+    return output
+
+
+def _is_device_query(query: str, entity_tokens: list[str]) -> bool:
+    lowered = (query or "").lower()
+    device_terms = (
+        "device",
+        "router",
+        "phone",
+        "cordless",
+        "handset",
+        "model",
+        "tp-link",
+        "dex",
+        "huawei",
+        "zte",
+        "\u062c\u0647\u0627\u0632",
+        "\u0631\u0627\u0648\u062a\u0631",
+        "\u062a\u0644\u064a\u0641\u0648\u0646",
+        "\u0647\u0627\u062a\u0641",
+        "\u0644\u0627\u0633\u0644\u0643\u064a",
+        "\u0645\u0648\u062f\u064a\u0644",
+        "\u062f\u0647 \u0627\u064a\u0647",
+        "\u062f\u0627 \u0627\u064a\u0647",
+        "\u0633\u0639\u0631\u0647",
+        "\u0645\u0648\u0627\u0635\u0641\u0627\u062a\u0647",
+    )
+    return bool(entity_tokens) or any(term in lowered for term in device_terms)
+
+
+def _result_search_text(result: dict[str, Any]) -> str:
+    metadata = result.get("metadata") or {}
+    parts = [
+        result.get("title"),
+        result.get("content"),
+        result.get("index_text"),
+        metadata.get("product_name"),
+        metadata.get("brand"),
+        metadata.get("model"),
+        " ".join(str(alias) for alias in metadata.get("search_aliases") or []),
+    ]
+    return " ".join(str(part or "") for part in parts).lower()
+
+
+def _entity_match_count(result: dict[str, Any], entity_tokens: list[str]) -> int:
+    haystack = _result_search_text(result)
+    return sum(1 for token in entity_tokens if token.lower() in haystack)
 
 
 def _extract_value_signature(text: str) -> list[str]:

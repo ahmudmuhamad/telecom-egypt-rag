@@ -142,7 +142,7 @@ The Streamlit UI is designed for end users.
 It shows:
 
 * Clean chat interface.
-* Final answer.
+* Retrieval-only source result cards by default.
 * Source citations.
 * Upload section.
 * Source selector.
@@ -155,6 +155,12 @@ It does **not** show internal technical details such as:
 * Debug logs.
 * Retrieval internals.
 * Fallback status.
+
+By default, Streamlit uses retrieval-only mode for maximum grounding and reliability. This is especially useful when running lightweight local models, where generation can be slower or less consistent. Generation mode is still available by setting:
+
+```env
+RESPONSE_MODE=generation
+```
 
 ---
 
@@ -506,6 +512,7 @@ In local mode:
 ```env
 QDRANT_URL=http://localhost:6333
 OLLAMA_BASE_URL=http://localhost:11434
+RESPONSE_MODE=retrieval
 ```
 
 In Docker mode:
@@ -513,7 +520,10 @@ In Docker mode:
 ```env
 QDRANT_URL=http://qdrant:6333
 OLLAMA_BASE_URL=http://ollama:11434
+RESPONSE_MODE=retrieval
 ```
+
+`RESPONSE_MODE=retrieval` is the default Streamlit mode. It displays the most relevant retrieved source cards directly. Set `RESPONSE_MODE=generation` to enable generated answers with citation validation and deterministic fallback.
 
 ---
 
@@ -1135,6 +1145,20 @@ Test uploaded document RAG:
 
 ```bash
 uv run python scripts/test_uploaded_retrieval.py data/uploads/test_doc.txt "What is the contract value?"
+```
+
+Cloud embedding workflow:
+
+```bash
+uv run python scripts/scrape_we_public_site.py --max-pages 500
+uv run python scripts/qa_processed_sources.py --include-disabled
+uv run python scripts/package_lightning_upload.py
+```
+
+Then build embeddings on Lightning AI and restore the downloaded Qdrant snapshot locally. See:
+
+```txt
+docs/cloud_embedding_workflow.md
 ```
 
 Open services:

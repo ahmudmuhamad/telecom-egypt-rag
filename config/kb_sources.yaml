@@ -19,12 +19,17 @@ sources:
     enabled: true
     description: WE Home internet, landline, WE Air, WE Space, WE Sonic, and WE Life records
 
+  - category: mobile
+    path: data/processed/mobile/mobile_post_processed_cleaned.jsonl
+    enabled: false
+    description: WE Mobile prepaid, control, postpaid, mobile internet, and value-added services scraped with Scrapling and cleaned for RAG indexing
+
+  - category: public_site
+    path: data/processed/public_site/public_site_post_processed.jsonl
+    enabled: false
+    description: Additional public Telecom Egypt / WE website pages scraped locally and reviewed before cloud indexing
+
 # Future website sections can be added like this:
-#
-# - category: mobile
-#   path: data/processed/mobile/mobile_post_processed.jsonl
-#   enabled: true
-#   description: Mobile bundles, add-ons, and offers
 #
 # - category: business
 #   path: data/processed/business/business_post_processed.jsonl

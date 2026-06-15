@@ -136,6 +136,16 @@ class AnswerGenerator:
             "fallback_used": False,
             "error": None,
         }
+        if debug:
+            base_response.update(
+                {
+                    "raw_model_answer": None,
+                    "validation_error": None,
+                    "fallback_answer": None,
+                    "ollama_endpoint_used": None,
+                    "raw_ollama_response_keys": [],
+                }
+            )
 
         if route_type == "clarification":
             self._record_fallback("route_clarification")
@@ -187,6 +197,7 @@ class AnswerGenerator:
                 answer,
                 sources,
                 require_citations=settings.generation_require_citations,
+                query=query,
             )
             return self._finalize(base_response, answer, sources, status="fallback")
 
@@ -197,15 +208,26 @@ class AnswerGenerator:
         model_sequence = model_sequence[: max(1, settings.generation_max_retries + 1)]
 
         last_error: str | None = None
+        last_raw_answer: str | None = None
         for attempt, (candidate_model, candidate_tier) in enumerate(model_sequence):
             try:
                 started_at = perf_counter()
                 raw_answer = self._generate_with_model(query, sources, language, candidate_model)
+                last_raw_answer = raw_answer
+                if debug:
+                    base_response["raw_model_answer"] = raw_answer
+                    ollama_debug = getattr(self.ollama, "last_generation_debug", {}) or {}
+                    base_response["ollama_endpoint_used"] = ollama_debug.get("ollama_endpoint_used")
+                    base_response["raw_ollama_response_keys"] = ollama_debug.get(
+                        "raw_ollama_response_keys",
+                        [],
+                    )
                 self._record_generation_latency(perf_counter() - started_at)
                 validation = validate_answer_grounding(
                     raw_answer,
                     sources,
                     require_citations=settings.generation_require_citations,
+                    query=query,
                 )
                 if validation["valid"]:
                     base_response.update(
@@ -220,20 +242,29 @@ class AnswerGenerator:
                     return self._finalize(base_response, raw_answer, sources, status="generated")
 
                 last_error = validation["reason"]
+                if debug:
+                    base_response["validation_error"] = last_error
                 self._record_fallback("citation_validation_failed")
                 self._record_error("validation")
             except Exception as exc:
                 last_error = str(exc)
+                if debug:
+                    base_response["validation_error"] = last_error
                 self._record_fallback("generation_error")
                 self._record_error("generation")
                 if self._is_generation_endpoint_unavailable(last_error):
                     break
 
         conservative_answer = self.build_conservative_answer(query, sources, language)
+        if debug:
+            base_response["raw_model_answer"] = last_raw_answer
+            base_response["validation_error"] = last_error
+            base_response["fallback_answer"] = conservative_answer
         validation = validate_answer_grounding(
             conservative_answer,
             sources,
             require_citations=settings.generation_require_citations,
+            query=query,
         )
         base_response.update(
             {
@@ -292,6 +323,9 @@ class AnswerGenerator:
         package_name = metadata.get("package_name") or source.get("title")
         is_arabic = language in {"ar", "mixed"}
 
+        if source.get("category") == "devices" and source.get("record_type") == "product":
+            return self._build_device_product_answer(source, source_id, is_arabic)
+
         if self._is_service_code_query(query, content) and code:
             if is_arabic:
                 answer = f"كود معرفة الرصيد هو {code}"
@@ -328,6 +362,92 @@ class AnswerGenerator:
         if is_arabic:
             return f"المعلومة المتاحة من المصدر الرسمي هي: {snippet}. [{source_id}]"
         return f"The available official source says: {snippet}. [{source_id}]"
+
+    def _build_device_product_answer(
+        self,
+        source: dict[str, Any],
+        source_id: int,
+        is_arabic: bool,
+    ) -> str:
+        metadata = source.get("metadata") or {}
+        title = metadata.get("product_name") or source.get("title") or "Device"
+        brand = metadata.get("brand") or metadata.get("manufacturer")
+        model = metadata.get("model")
+        price = metadata.get("price")
+        if not price and isinstance(metadata.get("price_numeric"), int | float):
+            price = f"{metadata['price_numeric']:,.0f} EGP"
+        warranty = metadata.get("warranty")
+        device_category = str(metadata.get("device_category") or "").replace("_", " ")
+        specifications = metadata.get("specifications")
+        if not isinstance(specifications, dict):
+            specifications = {}
+        spec_items = [
+            f"{key}: {value}"
+            for key, value in list(specifications.items())[:5]
+            if value not in (None, "")
+        ]
+        specs_text = ", ".join(spec_items)
+
+        if is_arabic:
+            descriptors = []
+            if brand:
+                descriptors.append(f"من {brand}")
+            if model and str(model).lower() not in str(title).lower():
+                descriptors.append(f"موديل {model}")
+            category_label = self._format_device_category(device_category, title, is_arabic=True)
+            if category_label:
+                descriptors.append(category_label)
+            answer = f"{title} هو جهاز {' '.join(descriptors).strip()}".strip()
+            if price:
+                answer += f"، سعره {str(price).replace('EGP', 'جنيه')}"
+            if warranty:
+                answer += f"، ويأتي بضمان {self._format_warranty(warranty, is_arabic=True)}"
+            if specs_text:
+                answer = self._rstrip_sentence_punctuation(answer)
+                answer += f". من مواصفاته: {specs_text}"
+            return f"{answer}. [{source_id}]"
+
+        details = []
+        if brand:
+            details.append(f"a {brand} device")
+        category_label = self._format_device_category(device_category, title, is_arabic=False)
+        if category_label:
+            details.append(category_label)
+        if model and str(model).lower() not in str(title).lower():
+            details.append(f"model {model}")
+        answer = f"{title} is {'; '.join(details) if details else 'a Telecom Egypt device'}"
+        if price:
+            answer += f" priced at {price}"
+        if warranty:
+            answer = self._rstrip_sentence_punctuation(answer)
+            answer += f". It includes {self._format_warranty(warranty, is_arabic=False)}"
+        if specs_text:
+            answer = self._rstrip_sentence_punctuation(answer)
+            answer += f" and features {specs_text}"
+        return f"{answer}. [{source_id}]"
+
+    def _format_device_category(self, category: str, title: str, is_arabic: bool) -> str:
+        normalized = (category or "").strip().lower()
+        title_lower = (title or "").lower()
+        if normalized == "fixed landline phones":
+            if "cordless" in title_lower:
+                return "تليفون أرضي لاسلكي" if is_arabic else "cordless landline phone"
+            return "تليفون أرضي" if is_arabic else "landline phone"
+        if normalized == "routers":
+            return "راوتر" if is_arabic else "router"
+        if normalized == "accessories":
+            return "إكسسوار" if is_arabic else "accessory"
+        return normalized
+
+    def _format_warranty(self, warranty: Any, is_arabic: bool) -> str:
+        text = self._rstrip_sentence_punctuation(str(warranty or "").strip())
+        normalized = text.lower()
+        if "1 year" in normalized or "one year" in normalized:
+            return "سنة" if is_arabic else "a 1-year warranty"
+        return text
+
+    def _rstrip_sentence_punctuation(self, text: str) -> str:
+        return re.sub(r"[\s.،]+$", "", text or "")
 
     def _is_service_code_query(self, query: str, content: str) -> bool:
         normalized = f"{query} {content}".lower()

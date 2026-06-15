@@ -1,0 +1,31 @@
+{
+  "accepted_records": 878,
+  "counts_by_language": {
+    "ar": 568,
+    "en": 310
+  },
+  "counts_by_mobile_category": {
+    "control_plans": 282,
+    "mobile_internet": 453,
+    "postpaid": 84,
+    "prepaid": 56,
+    "value_added_services": 3
+  },
+  "counts_by_record_type": {
+    "package": 490,
+    "plan": 370,
+    "service_code": 3,
+    "terms": 15
+  },
+  "failed_urls": [],
+  "missing_code_count": 192,
+  "missing_price_count": 251,
+  "missing_quota_count": 136,
+  "number_of_pages_fetched": 79,
+  "rejected_records": 0,
+  "top_quality_flags": {
+    "language_mismatch": 111,
+    "scrapling_static_fetch": 878
+  },
+  "total_records": 878
+}

@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -37,6 +38,7 @@ class Settings(BaseSettings):
     context_compression_mode: str = "deterministic"
     min_sources_for_answer: int = 1
     allow_no_source_answer: bool = False
+    response_mode: Literal["retrieval", "generation"] = "retrieval"
 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "telecom_all_sources_v1"

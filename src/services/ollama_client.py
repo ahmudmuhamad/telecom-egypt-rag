@@ -13,6 +13,7 @@ class OllamaClient:
         self.base_url = (base_url or settings.ollama_base_url).rstrip("/")
         self.timeout = timeout if timeout is not None else settings.ollama_timeout_seconds
         self.retries = retries
+        self.last_generation_debug: dict[str, Any] = {}
 
     def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
@@ -114,6 +115,7 @@ class OllamaClient:
         model: str | None = None,
     ) -> str:
         selected_model = model or settings.default_generation_model
+        self.last_generation_debug = {}
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
@@ -126,13 +128,18 @@ class OllamaClient:
                     "model": selected_model,
                     "messages": messages,
                     "stream": False,
+                    "think": False,
                     "options": {
                         "temperature": temperature,
                         "num_predict": settings.ollama_generation_num_predict,
                     },
                 },
             )
-            content = data.get("message", {}).get("content")
+            self.last_generation_debug = {
+                "ollama_endpoint_used": "/api/chat",
+                "raw_ollama_response_keys": sorted(data.keys()),
+            }
+            content = self._extract_generation_content(data)
         except RuntimeError as chat_error:
             prompt_parts = []
             if system:
@@ -144,18 +151,41 @@ class OllamaClient:
                     "model": selected_model,
                     "prompt": "\n\n".join(prompt_parts),
                     "stream": False,
+                    "think": False,
                     "options": {
                         "temperature": temperature,
                         "num_predict": settings.ollama_generation_num_predict,
                     },
                 },
             )
-            content = data.get("response")
+            self.last_generation_debug = {
+                "ollama_endpoint_used": "/api/generate",
+                "raw_ollama_response_keys": sorted(data.keys()),
+            }
+            content = self._extract_generation_content(data)
             if not isinstance(content, str):
                 raise chat_error
         if not isinstance(content, str):
             raise RuntimeError("Ollama chat response did not contain message.content.")
         return content.strip()
+
+    def _extract_generation_content(self, data: dict[str, Any]) -> str | None:
+        message = data.get("message")
+        if isinstance(message, dict):
+            content = message.get("content")
+            if isinstance(content, str) and content.strip():
+                return content
+        for key in ("response", "content"):
+            content = data.get(key)
+            if isinstance(content, str) and content.strip():
+                return content
+        if isinstance(message, dict) and isinstance(message.get("content"), str):
+            return message.get("content")
+        for key in ("response", "content"):
+            content = data.get(key)
+            if isinstance(content, str):
+                return content
+        return None
 
     def ensure_models_available(self, required_models: list[str]) -> dict[str, bool]:
         available = set(self.list_models())

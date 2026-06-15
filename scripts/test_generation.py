@@ -36,7 +36,7 @@ def main() -> None:
     args = parse_args()
     if args.rerank and args.no_rerank:
         raise SystemExit("Use either --rerank or --no-rerank, not both.")
-    use_reranking = False
+    use_reranking = None
     if args.rerank:
         use_reranking = True
     elif args.no_rerank:
@@ -48,8 +48,23 @@ def main() -> None:
         source_mode=args.source_mode,
         top_k=args.top_k,
         use_reranking=use_reranking,
-        debug=args.debug,
+        debug=args.debug or args.json,
     )
+    if args.debug or args.json:
+        retrieval = result.get("retrieval") or {}
+        route = result.get("route") or {}
+        result["debug_comparison"] = {
+            "retrieval_final_result_titles": [
+                item.get("title") for item in retrieval.get("final_results") or []
+            ],
+            "final_source_titles": [source.get("title") for source in result.get("sources") or []],
+            "reranking_used": retrieval.get("reranking_used"),
+            "source_mode": route.get("source_mode"),
+            "category_filter": route.get("category_filter"),
+            "raw_model_answer": result.get("raw_model_answer"),
+            "validation_reason": result.get("validation_error")
+            or (result.get("validation") or {}).get("reason"),
+        }
 
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))

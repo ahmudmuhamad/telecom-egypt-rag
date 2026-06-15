@@ -51,15 +51,32 @@ CATEGORY_RULES: dict[str, tuple[str, ...]] = {
     "devices": (
         "router",
         "device",
+        "phone",
+        "cordless",
+        "handset",
+        "model",
+        "tp-link",
+        "dex",
+        "d1005",
+        "vn020",
+        "zxhn",
         "iphone",
         "samsung",
         "tp-link",
         "tplink",
         "zte",
         "huawei",
+        "\u062c\u0647\u0627\u0632",
         "\u0631\u0627\u0648\u062a\u0631",
+        "\u062a\u0644\u064a\u0641\u0648\u0646",
         "\u0645\u0648\u0628\u0627\u064a\u0644",
         "\u0647\u0627\u062a\u0641",
+        "\u0644\u0627\u0633\u0644\u0643\u064a",
+        "\u0645\u0648\u062f\u064a\u0644",
+        "\u062f\u0647 \u0627\u064a\u0647",
+        "\u062f\u0627 \u0627\u064a\u0647",
+        "\u0633\u0639\u0631\u0647",
+        "\u0645\u0648\u0627\u0635\u0641\u0627\u062a\u0647",
     ),
     "we_home": (
         "we space",
@@ -141,6 +158,8 @@ def route_query(query: str, source_mode: str = "official") -> dict[str, Any]:
 
 
 def infer_category(normalized_query: str) -> str | None:
+    if is_device_query(normalized_query):
+        return "devices"
     matches: list[str] = []
     for category, terms in CATEGORY_RULES.items():
         if any(term in normalized_query for term in terms):
@@ -150,6 +169,15 @@ def infer_category(normalized_query: str) -> str | None:
     if "devices" in matches and any(term in normalized_query for term in ("price", "\u0633\u0639\u0631")):
         return "devices"
     return None
+
+
+def is_device_query(normalized_query: str) -> bool:
+    device_terms = CATEGORY_RULES["devices"]
+    if any(term in normalized_query for term in device_terms):
+        return True
+    return bool(
+        re.search(r"\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]{3,}\b", normalized_query)
+    )
 
 
 def infer_language_hint(query: str) -> str | None:
