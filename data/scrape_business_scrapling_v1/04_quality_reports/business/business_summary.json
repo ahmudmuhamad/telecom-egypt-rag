@@ -1,0 +1,21 @@
+{
+  "accepted_records": 16,
+  "counts_by_business_category": {
+    "business_mobile_services": 16
+  },
+  "counts_by_record_type": {
+    "business_plan": 15,
+    "business_service": 1
+  },
+  "failed_urls": [],
+  "missing_price_count": 14,
+  "missing_quota_count": 5,
+  "missing_terms_count": 14,
+  "number_of_pages_fetched": 5,
+  "rejected_records": 0,
+  "top_quality_flags": {
+    "scrapling_static_fetch": 16,
+    "ui_noise_removed": 16
+  },
+  "total_records": 16
+}

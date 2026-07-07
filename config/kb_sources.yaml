@@ -24,14 +24,14 @@ sources:
     enabled: false
     description: WE Mobile prepaid, control, postpaid, mobile internet, and value-added services scraped with Scrapling and cleaned for RAG indexing
 
+  - category: business
+    path: data/processed/business/business_post_processed.jsonl
+    enabled: false
+    description: WE Business services, mobile corporate plans, connectivity, voice services, hosting, digital solutions, and wholesale scraped with Scrapling
+
   - category: public_site
     path: data/processed/public_site/public_site_post_processed.jsonl
     enabled: false
     description: Additional public Telecom Egypt / WE website pages scraped locally and reviewed before cloud indexing
 
 # Future website sections can be added like this:
-#
-# - category: business
-#   path: data/processed/business/business_post_processed.jsonl
-#   enabled: true
-#   description: Business services and enterprise products

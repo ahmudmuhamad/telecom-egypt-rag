@@ -1,0 +1,35 @@
+{
+  "failed_urls": [],
+  "fetched": {
+    "https://te.eg/web/te-business": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/web/te-business",
+      "raw_html_path": "data\\scrape_business_scrapling_v1\\01_raw_html\\business\\listing_pages\\te.eg__web_te-business_6f02bd69.html",
+      "status": 200
+    },
+    "https://te.eg/web/te-business/we-buissnes-internet": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/web/te-business/we-buissnes-internet",
+      "raw_html_path": "data\\scrape_business_scrapling_v1\\01_raw_html\\business\\detail_pages\\te.eg__web_te-business_we-buissnes-internet_3a9bf8e1.html",
+      "status": 200
+    },
+    "https://te.eg/web/te-business/we-buissnes-value": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/web/te-business/we-buissnes-value",
+      "raw_html_path": "data\\scrape_business_scrapling_v1\\01_raw_html\\business\\detail_pages\\te.eg__web_te-business_we-buissnes-value_c228b7e6.html",
+      "status": 200
+    },
+    "https://te.eg/web/te-business/we-business": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/web/te-business/we-business",
+      "raw_html_path": "data\\scrape_business_scrapling_v1\\01_raw_html\\business\\detail_pages\\te.eg__web_te-business_we-business_a51ee555.html",
+      "status": 200
+    },
+    "https://te.eg/web/te-business/we-business-prepaid": {
+      "dynamic_fetch_used": false,
+      "final_url": "https://te.eg/web/te-business/we-business-prepaid",
+      "raw_html_path": "data\\scrape_business_scrapling_v1\\01_raw_html\\business\\detail_pages\\te.eg__web_te-business_we-business-prepaid_ce14942c.html",
+      "status": 200
+    }
+  }
+}
