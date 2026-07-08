@@ -196,7 +196,7 @@ class AnswerGenerator:
             base_response["validation"] = validate_answer_grounding(
                 answer,
                 sources,
-                require_citations=settings.generation_require_citations,
+                require_citations=(settings.generation_require_citations and route.get("source_mode", source_mode) != "uploads"),
                 query=query,
             )
             return self._finalize(base_response, answer, sources, status="fallback")
@@ -226,7 +226,7 @@ class AnswerGenerator:
                 validation = validate_answer_grounding(
                     raw_answer,
                     sources,
-                    require_citations=settings.generation_require_citations,
+                    require_citations=(settings.generation_require_citations and route.get("source_mode", source_mode) != "uploads"),
                     query=query,
                 )
                 if validation["valid"]:
@@ -263,7 +263,7 @@ class AnswerGenerator:
         validation = validate_answer_grounding(
             conservative_answer,
             sources,
-            require_citations=settings.generation_require_citations,
+            require_citations=(settings.generation_require_citations and route.get("source_mode", source_mode) != "uploads"),
             query=query,
         )
         base_response.update(
