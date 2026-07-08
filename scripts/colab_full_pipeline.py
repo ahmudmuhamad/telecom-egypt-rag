@@ -1068,12 +1068,42 @@ def update_build_manifest(config: PipelineConfig, updates: dict[str, Any]) -> No
 
 
 def install_and_start_ollama(config: PipelineConfig) -> None:
-    del config
     if shutil.which("ollama") is None:
-        subprocess.run("curl -fsSL https://ollama.com/install.sh | sh", shell=True, check=True)
-    subprocess.Popen(["ollama", "serve"], stdout=open("ollama.log", "a", encoding="utf-8"), stderr=subprocess.STDOUT)
-    time.sleep(5)
-    subprocess.run(["ollama", "pull", DEFAULT_EMBEDDING_MODEL], check=True)
+        command = "set -o pipefail; curl -fsSL https://ollama.com/install.sh | sh"
+        result = subprocess.run(
+            ["bash", "-lc", command],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+        )
+        if result.returncode != 0:
+            print(result.stdout)
+            raise RuntimeError(
+                "Ollama install failed. In Colab, try rerunning the cell or run "
+                "`!curl -fsSL https://ollama.com/install.sh | sh` manually to see "
+                "the full installer output."
+            )
+    log_path = config.workspace_dir / "logs" / "ollama.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen(
+        ["ollama", "serve"],
+        stdout=log_path.open("a", encoding="utf-8"),
+        stderr=subprocess.STDOUT,
+    )
+    wait_for_ollama()
+    subprocess.run(["ollama", "pull", config.embedding_model], check=True)
+
+
+def wait_for_ollama(timeout_seconds: int = 60) -> None:
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        try:
+            response = requests.get("http://localhost:11434/api/tags", timeout=3)
+            if response.status_code == 200:
+                return
+        except requests.RequestException:
+            time.sleep(2)
+    raise RuntimeError("Ollama did not become ready on http://localhost:11434.")
 
 
 def start_qdrant_docker(config: PipelineConfig) -> None:
