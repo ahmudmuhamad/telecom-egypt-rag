@@ -485,12 +485,17 @@ class HybridRetriever:
 
     def extract_query_entity_tokens(self, query: str) -> list[str]:
         tokens: list[str] = []
+        ignore_words = {"Tell", "Can", "Please", "Explain", "What", "How", "Why", "When", "Where", "Is", "Are", "Do", "Does", "Show", "Give", "Help"}
+        
         for match in re.findall(r"\b[A-Z][A-Za-z0-9-]{2,}\b", query or ""):
-            tokens.append(match)
+            if match not in ignore_words:
+                tokens.append(match)
         for match in re.findall(
             r"\b(?=[A-Za-z0-9-]*[A-Za-z])(?=[A-Za-z0-9-]*\d)[A-Za-z0-9-]{3,}\b",
             query or "",
         ):
+            tokens.append(match)
+        for match in re.findall(r"\b\d+\b", query or ""):
             tokens.append(match)
         for token in ("DEX", "Cordless", "D1005", "VN020", "ZXHN", "Huawei", "ZTE", "TP-Link"):
             if token.lower() in (query or "").lower():

@@ -311,7 +311,7 @@ class AnswerGenerator:
             return build_no_source_answer(query, language)
 
         source = sources[0]
-        source_id = source["source_id"]
+        source_id = source.get("source_id", "")
         metadata = source.get("metadata") or {}
         content = source.get("content") or source.get("snippet") or ""
         clean_content = clean_user_visible_text(str(metadata.get("answer") or content))
