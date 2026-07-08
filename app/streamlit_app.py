@@ -231,7 +231,7 @@ def main() -> None:
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Searching official WE sources..."):
+        with st.spinner(f"Searching {source_mode}"):
             try:
                 result = get_generator().answer(
                     prompt,

@@ -112,6 +112,7 @@ def build_generation_prompt(query: str, sources: list[dict[str, Any]], language:
                 "6. لا تضف قسم Sources أو مصادر.",
                 "7. لا تذكر الميتاداتا أو البحث أو الترتيب أو سلوك النموذج.",
                 "8. أعد الإجابة النهائية فقط.",
+                "9. قم دائمًا بذكر أسماء المنتجات أو المشاريع أو المواضيع المحددة المطلوبة في السؤال بشكل صريح (لا تستبدلها بضمائر مثل 'هو' أو 'هي').",
             ]
         )
         source_leakage_instruction = (
@@ -138,6 +139,7 @@ def build_generation_prompt(query: str, sources: list[dict[str, Any]], language:
                 "6. Do not include a Sources section.",
                 "7. Do not mention internal metadata, retrieval, ranking, or model behavior.",
                 "8. Return only the final answer.",
+                "9. Always explicitly state the specific product names, project names, or subjects asked about in the question (do not replace them with pronouns like 'it' or 'they').",
             ]
         )
         source_leakage_instruction = (

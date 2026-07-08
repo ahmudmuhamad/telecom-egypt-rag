@@ -58,7 +58,16 @@ def validate_answer_grounding(
 
 def extract_required_query_entities(query: str) -> list[str]:
     tokens: list[str] = []
-    ignore_words = {"Tell", "Can", "Please", "Explain", "What", "How", "Why", "When", "Where", "Is", "Are", "Do", "Does", "Show", "Give", "Help"}
+    ignore_words = {
+        "Tell", "Can", "Please", "Explain", "What", "How", "Why", "When",
+        "Where", "Is", "Are", "Do", "Does", "Show", "Give", "Help",
+        "Did", "Was", "Were", "Has", "Had", "Have", "Could", "Would",
+        "Should", "Which", "May", "Might", "Shall", "Must", "Will",
+        "About", "Also", "And", "Any", "But", "For", "From", "Get",
+        "Got", "Its", "Not", "Okay", "The", "This", "That", "With",
+        "Who", "Whom", "Your", "Our", "His", "Her", "They", "Them",
+        "Some", "Each", "All", "Both", "Such", "Than", "Then",
+    }
     
     for match in re.findall(r"\b[A-Z][A-Za-z0-9-]{2,}\b", query or ""):
         if match not in ignore_words:
@@ -112,7 +121,7 @@ def has_entity_mismatch(
         for source in cited_sources
     ).lower()
     return any(
-        entity.lower() not in answer_text or entity.lower() not in cited_source_text
+        entity.lower() not in cited_source_text
         for entity in entities
     )
 
