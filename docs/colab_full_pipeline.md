@@ -19,7 +19,7 @@ The pipeline can:
 - Build the unified official KB, chunks, and BM25 index with the existing project scripts.
 - Install and run Ollama.
 - Pull and use `qwen3-embedding:4b` through Ollama `/api/embed`.
-- Start Qdrant in Docker with Drive-backed storage and snapshots.
+- Start Qdrant with `udocker` in Colab, or Docker where a Docker daemon is available, with Drive-backed storage and snapshots.
 - Create `telecom_all_sources_v2` using detected vector size and cosine distance.
 - Embed chunks, upsert them to Qdrant, and write a resumable progress file.
 - Export both a Qdrant snapshot and `embedded_points_v2.jsonl.gz`.
@@ -167,6 +167,19 @@ The notebook installs Ollama and pulls exactly:
 qwen3-embedding:4b
 ```
 
+The Ollama stage installs Colab system helpers before pulling the model:
+
+```bash
+sudo apt update
+sudo apt install -y pciutils zstd
+```
+
+`zstd` is required for extracting current Ollama model layers in Colab. The notebook starts `ollama serve` in a background Python thread, waits for `http://localhost:11434/api/tags`, then runs:
+
+```bash
+ollama pull qwen3-embedding:4b
+```
+
 Embeddings are generated with:
 
 ```text
@@ -175,7 +188,38 @@ http://localhost:11434/api/embed
 
 The first embedding is used to detect vector size. The expected size is likely `2560`, but the pipeline does not hardcode it.
 
-Qdrant runs as a Docker server, not embedded local mode:
+Qdrant runs as a real server on `localhost:6333`, not embedded local mode.
+
+The Colab notebook defaults to `udocker` because Colab often blocks the standard Docker daemon:
+
+```python
+QDRANT_RUNTIME = "udocker"
+QDRANT_IMAGE = "qdrant/qdrant:v1.14.0"
+```
+
+The runner installs and initializes `udocker` with `--allow-root`, pulls the Qdrant image, creates a `qdrant_colab` container, mounts Drive-backed Qdrant folders, and waits for the HTTP API.
+
+Equivalent manual `udocker` commands:
+
+```bash
+pip install udocker
+udocker --allow-root install
+udocker --allow-root pull qdrant/qdrant:v1.14.0
+udocker --allow-root rm qdrant_colab || true
+udocker --allow-root create --name=qdrant_colab qdrant/qdrant:v1.14.0
+udocker --allow-root run \
+  -v /content/drive/MyDrive/telecom_egypt_rag_colab/qdrant_storage:/qdrant/storage \
+  -v /content/drive/MyDrive/telecom_egypt_rag_colab/qdrant_snapshots:/qdrant/snapshots \
+  qdrant_colab
+```
+
+If you are running somewhere with a working Docker daemon, set:
+
+```python
+QDRANT_RUNTIME = "docker"
+```
+
+Docker equivalent:
 
 ```bash
 docker run -d \
@@ -241,8 +285,9 @@ Expected results:
 ## Common Colab Issues
 
 - **Runtime disconnects:** rerun from the last completed stage. Drive checkpoints and embedding progress should allow resume.
+- **Ollama model pull says zstd is required:** rerun the Ollama cell. It installs `zstd` before `ollama pull`.
 - **Ollama out of memory:** keep `EMBED_BATCH_SIZE = 1` and use a GPU runtime when available.
-- **Docker not available:** switch Colab runtime or restart the session. Qdrant snapshots require server mode.
+- **Docker not available:** use the default `QDRANT_RUNTIME = "udocker"` in Colab. Qdrant snapshots still use server mode on `localhost:6333`.
 - **Slow scraping:** keep concurrency low. The default is respectful and section-limited.
 - **No snapshot file found:** check `manifests/qdrant_snapshot_manifest.json` and search both `qdrant_snapshots/` and `qdrant_storage/`.
 - **Existing processed file not updated:** set `OVERWRITE_PROCESSED = True` only when you intentionally want to replace the target.
@@ -256,4 +301,4 @@ uv run python -m compileall scripts/colab_full_pipeline.py
 uv run ruff check scripts/colab_full_pipeline.py
 ```
 
-Do not run the full Colab pipeline locally unless you intentionally want network scraping, Ollama embedding, Docker Qdrant, and large artifact creation.
+Do not run the full Colab pipeline locally unless you intentionally want network scraping, Ollama embedding, a Qdrant server, and large artifact creation.

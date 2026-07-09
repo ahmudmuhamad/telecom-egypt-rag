@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -34,6 +35,7 @@ DEFAULT_REPO_DIR = Path("/content/telecom-egypt-rag")
 DEFAULT_EMBEDDING_MODEL = "qwen3-embedding:4b"
 DEFAULT_COLLECTION_NAME = "telecom_all_sources_v2"
 DEFAULT_QDRANT_IMAGE = "qdrant/qdrant:v1.14.0"
+DEFAULT_QDRANT_RUNTIME = "udocker"
 OLLAMA_ENDPOINT = "http://localhost:11434/api/embed"
 QDRANT_URL = "http://localhost:6333"
 
@@ -69,6 +71,7 @@ class PipelineConfig:
     embedding_model: str = DEFAULT_EMBEDDING_MODEL
     collection_name: str = DEFAULT_COLLECTION_NAME
     qdrant_image: str = DEFAULT_QDRANT_IMAGE
+    qdrant_runtime: str = DEFAULT_QDRANT_RUNTIME
 
 
 def default_sections() -> dict[str, SectionConfig]:
@@ -1068,6 +1071,7 @@ def update_build_manifest(config: PipelineConfig, updates: dict[str, Any]) -> No
 
 
 def install_and_start_ollama(config: PipelineConfig) -> None:
+    install_ollama_system_dependencies()
     if shutil.which("ollama") is None:
         command = "set -o pipefail; curl -fsSL https://ollama.com/install.sh | sh"
         result = subprocess.run(
@@ -1085,13 +1089,26 @@ def install_and_start_ollama(config: PipelineConfig) -> None:
             )
     log_path = config.workspace_dir / "logs" / "ollama.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
+    thread = threading.Thread(target=run_ollama_serve, args=(log_path,), daemon=True)
+    thread.start()
+    time.sleep(5)
+    wait_for_ollama()
+    subprocess.run(["ollama", "pull", config.embedding_model], check=True)
+
+
+def install_ollama_system_dependencies() -> None:
+    if not Path("/content").exists() or shutil.which("apt-get") is None:
+        return
+    subprocess.run(["apt-get", "update"], check=False)
+    subprocess.run(["apt-get", "install", "-y", "pciutils", "zstd"], check=True)
+
+
+def run_ollama_serve(log_path: Path) -> None:
     subprocess.Popen(
         ["ollama", "serve"],
         stdout=log_path.open("a", encoding="utf-8"),
         stderr=subprocess.STDOUT,
     )
-    wait_for_ollama()
-    subprocess.run(["ollama", "pull", config.embedding_model], check=True)
 
 
 def wait_for_ollama(timeout_seconds: int = 60) -> None:
@@ -1127,6 +1144,51 @@ def start_qdrant_docker(config: PipelineConfig) -> None:
         check=True,
     )
     wait_for_qdrant()
+
+
+def udocker_command() -> list[str]:
+    executable = shutil.which("udocker") or "udocker"
+    return [executable, "--allow-root"]
+
+
+def run_udocker(args: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
+    return subprocess.run([*udocker_command(), *args], text=True, check=check)
+
+
+def start_qdrant_udocker(config: PipelineConfig) -> None:
+    ensure_workspace(config)
+    subprocess.run([sys.executable, "-m", "pip", "install", "udocker"], check=True)
+    run_udocker(["install"])
+    run_udocker(["pull", config.qdrant_image])
+    run_udocker(["rm", "qdrant_colab"], check=False)
+    run_udocker(["create", "--name=qdrant_colab", config.qdrant_image])
+    log_path = config.workspace_dir / "logs" / "qdrant_udocker.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.Popen(
+        [
+            *udocker_command(),
+            "run",
+            "-v",
+            f"{config.workspace_dir / 'qdrant_storage'}:/qdrant/storage",
+            "-v",
+            f"{config.workspace_dir / 'qdrant_snapshots'}:/qdrant/snapshots",
+            "qdrant_colab",
+        ],
+        stdout=log_path.open("a", encoding="utf-8"),
+        stderr=subprocess.STDOUT,
+    )
+    wait_for_qdrant()
+
+
+def start_qdrant_server(config: PipelineConfig) -> None:
+    runtime = config.qdrant_runtime.lower().strip()
+    if runtime == "docker":
+        start_qdrant_docker(config)
+        return
+    if runtime == "udocker":
+        start_qdrant_udocker(config)
+        return
+    raise ValueError(f"Unsupported Qdrant runtime: {config.qdrant_runtime!r}")
 
 
 def wait_for_qdrant(timeout_seconds: int = 60) -> None:
@@ -1291,6 +1353,7 @@ def create_qdrant_snapshot(config: PipelineConfig) -> dict[str, Any]:
         "points_count": points_count,
         "created_at": utc_now_iso(),
         "qdrant_image_version": config.qdrant_image,
+        "qdrant_runtime": config.qdrant_runtime,
     }
     write_json(config.workspace_dir / "manifests" / "qdrant_snapshot_manifest.json", manifest)
     print("Snapshot created successfully:")
@@ -1447,6 +1510,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--collection-name", default=DEFAULT_COLLECTION_NAME)
     parser.add_argument("--embedding-model", default=DEFAULT_EMBEDDING_MODEL)
     parser.add_argument("--qdrant-image", default=DEFAULT_QDRANT_IMAGE)
+    parser.add_argument("--qdrant-runtime", default=DEFAULT_QDRANT_RUNTIME, choices=["udocker", "docker"])
     parser.add_argument("--enable-mobile", type=parse_bool, default=False)
     return parser.parse_args(argv)
 
@@ -1469,6 +1533,7 @@ def build_config(args: argparse.Namespace) -> PipelineConfig:
         collection_name=args.collection_name,
         embedding_model=args.embedding_model,
         qdrant_image=args.qdrant_image,
+        qdrant_runtime=args.qdrant_runtime,
     )
 
 
@@ -1488,7 +1553,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.stage == "ollama":
         install_and_start_ollama(config)
     elif args.stage == "qdrant":
-        start_qdrant_docker(config)
+        start_qdrant_server(config)
     elif args.stage == "embed":
         generate_embeddings_and_upsert(config)
     elif args.stage == "snapshot":
@@ -1504,7 +1569,7 @@ def main(argv: list[str] | None = None) -> None:
         build_chunks(config)
         build_bm25(config)
         install_and_start_ollama(config)
-        start_qdrant_docker(config)
+        start_qdrant_server(config)
         generate_embeddings_and_upsert(config)
         create_qdrant_snapshot(config)
         write_final_report(config)
