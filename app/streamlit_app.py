@@ -99,6 +99,28 @@ def clean_answer_text(text: str) -> str:
     return clean_user_visible_text(extract_answer_body(text)).strip()
 
 
+def _is_not_found_text(text: str) -> bool:
+    """Detect 'not found' answers so sources are not shown."""
+    normalized = (text or "").strip().lower()
+    signals = (
+        "\u0644\u0645 \u0623\u062c\u062f",
+        "\u0644\u0645 \u064a\u062a\u0645 \u0627\u0644\u0639\u062b\u0648\u0631",
+        "\u0644\u0645 \u0623\u062a\u0645\u0643\u0646 \u0645\u0646 \u0627\u0644\u0639\u062b\u0648\u0631",
+        "\u063a\u064a\u0631 \u0645\u062a\u0648\u0641\u0631",
+        "\u0644\u0627 \u062a\u062a\u0648\u0641\u0631",
+        "\u0644\u0627 \u062a\u0648\u062c\u062f \u0645\u0639\u0644\u0648\u0645\u0627\u062a",
+        "i could not find",
+        "could not find this information",
+        "not found in the",
+        "no information",
+        "is not available in",
+        "not mentioned in",
+        "does not contain",
+        "no relevant information",
+    )
+    return any(s in normalized for s in signals)
+
+
 def render_header() -> None:
     st.title("WE Intelligent Assistant")
     st.caption("Ask about WE services, packages, devices, and FAQs.")
@@ -244,6 +266,8 @@ def main() -> None:
                 sources = result.get("sources") or []
                 if not answer_text:
                     answer_text = "Sorry, I could not answer that right now. Please try again."
+                    sources = []
+                if _is_not_found_text(answer_text):
                     sources = []
             except Exception:
                 try:

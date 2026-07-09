@@ -177,6 +177,12 @@ class AnswerGenerator:
             base_response["validation"] = validate_answer_grounding(answer, [], require_citations=False)
             return self._finalize(base_response, answer, [], status="fallback")
 
+        if final_results and self._are_results_irrelevant(final_results):
+            self._record_fallback("low_relevance")
+            answer = build_no_source_answer(query, language)
+            base_response["validation"] = validate_answer_grounding(answer, [], require_citations=False)
+            return self._finalize(base_response, answer, [], status="no_relevant_sources")
+
         if track_latency is not None and RAG_CONTEXT_ASSEMBLY_LATENCY is not None:
             with track_latency(RAG_CONTEXT_ASSEMBLY_LATENCY):
                 sources = format_results_for_generation(
@@ -527,6 +533,43 @@ class AnswerGenerator:
             )
         )
 
+    def _are_results_irrelevant(self, final_results: list[dict[str, Any]]) -> bool:
+        """Check if the top retrieved results have scores too low to be relevant."""
+        threshold = settings.min_relevance_score
+        if not final_results or threshold <= 0:
+            return False
+        top_scores = [
+            float(r.get("final_score") or r.get("score") or 0.0)
+            for r in final_results[:3]
+        ]
+        if not top_scores:
+            return False
+        return max(top_scores) < threshold
+
+    @staticmethod
+    def _is_not_found_answer(answer: str) -> bool:
+        """Detect if the answer is a 'not found' / 'information unavailable' response."""
+        if not answer:
+            return False
+        normalized = answer.strip().lower()
+        not_found_signals = (
+            "لم أجد",
+            "لم يتم العثور",
+            "لم أتمكن من العثور",
+            "غير متوفر",
+            "لا تتوفر",
+            "لا توجد معلومات",
+            "i could not find",
+            "could not find this information",
+            "not found in the",
+            "no information",
+            "is not available in",
+            "not mentioned in",
+            "does not contain",
+            "no relevant information",
+        )
+        return any(signal in normalized for signal in not_found_signals)
+
     def _upload_first_answer(self, language: str) -> str:
         if language in {"ar", "mixed"}:
             return "من فضلك ارفع مستند أولًا، ثم اسأل سؤالك."
@@ -539,6 +582,8 @@ class AnswerGenerator:
         sources: list[dict[str, Any]],
         status: str,
     ) -> dict[str, Any]:
+        if self._is_not_found_answer(answer):
+            sources = []
         response["answer"] = answer
         response["sources"] = sources
         response["answer_with_sources"] = append_sources_section(answer, sources) if sources else answer

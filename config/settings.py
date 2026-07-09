@@ -38,6 +38,7 @@ class Settings(BaseSettings):
     context_compression_mode: str = "deterministic"
     min_sources_for_answer: int = 1
     allow_no_source_answer: bool = False
+    min_relevance_score: float = 0.35
     response_mode: Literal["retrieval", "generation"] = "retrieval"
 
     qdrant_url: str = "http://localhost:6333"
