@@ -38,6 +38,7 @@ DEFAULT_QDRANT_IMAGE = "qdrant/qdrant:v1.14.0"
 DEFAULT_QDRANT_RUNTIME = "udocker"
 OLLAMA_ENDPOINT = "http://localhost:11434/api/embed"
 QDRANT_URL = "http://localhost:6333"
+QDRANT_CLIENT_TIMEOUT_SECONDS = 300
 
 
 @dataclass
@@ -186,6 +187,77 @@ def default_sections() -> dict[str, SectionConfig]:
         "devices": SectionConfig("devices", False, [], ["devices"], deny),
         "services": SectionConfig("services", False, [], ["services"], deny),
         "we_home": SectionConfig("we_home", False, [], ["we-home", "internet"], deny),
+        "corporate_sustainability": SectionConfig(
+            name="corporate_sustainability",
+            enabled=False,
+            seeds=[
+                "https://te.eg/en/Corporate-Sustainability/",
+                "https://te.eg/en/web/guest/corporate-sustainability/sustainability",
+                "https://te.eg/en/web/guest/corporate-sustainability/climate-change",
+                "https://te.eg/en/web/guest/corporate-sustainability/corporate-quality",
+                "https://te.eg/Corporate-Sustainability/",
+                "https://te.eg/Corporate-Sustainability/Sustainability",
+                "https://te.eg/Corporate-Sustainability/climate-change",
+                "https://te.eg/Corporate-Sustainability/corporate-quality",
+            ],
+            allow_patterns=[
+                "Corporate-Sustainability",
+                "corporate-sustainability",
+                "sustainability",
+                "climate-change",
+                "corporate-quality",
+            ],
+            deny_patterns=[*deny, "shop.te.eg", "my.te.eg", "ir.te.eg", "csr.te.eg"],
+            output_folder="corporate_sustainability",
+            parser=None,
+            customer_segment="corporate",
+        ),
+        "about_te": SectionConfig(
+            name="about_te",
+            enabled=False,
+            seeds=[
+                "https://te.eg/en/about-te/",
+                "https://te.eg/en/about-te/board-of-directors",
+                "https://te.eg/en/about-te/management-team",
+                "https://te.eg/en/about-te/te-museum",
+                "https://te.eg/en/about-te/history",
+                "https://te.eg/en/about-te/awards",
+                "https://te.eg/en/about-te/corporate-strategy",
+                "https://te.eg/en/about-te/press-releases",
+                "https://te.eg/en/about-te/tv-ads",
+                "https://te.eg/en/about-te/careers-and-training",
+                "https://te.eg/en/about-te/contact-us",
+                "https://te.eg/about-te/",
+                "https://te.eg/about-te/board-of-directors",
+                "https://te.eg/about-te/management-team",
+                "https://te.eg/about-te/te-museum",
+                "https://te.eg/about-te/history",
+                "https://te.eg/about-te/awards",
+                "https://te.eg/about-te/corporate-strategy",
+                "https://te.eg/about-te/press-releases",
+                "https://te.eg/about-te/tv-ads",
+                "https://te.eg/about-te/careers-and-training",
+                "https://te.eg/about-te/contact-us",
+            ],
+            allow_patterns=[
+                "/about-te",
+                "about-te",
+                "board-of-directors",
+                "management-team",
+                "te-museum",
+                "history",
+                "awards",
+                "corporate-strategy",
+                "press-releases",
+                "tv-ads",
+                "careers-and-training",
+                "contact-us",
+            ],
+            deny_patterns=[*deny, "shop.te.eg", "my.te.eg", "ir.te.eg", "csr.te.eg"],
+            output_folder="about_te",
+            parser=None,
+            customer_segment="corporate",
+        ),
     }
 
 
@@ -497,6 +569,8 @@ def extract_records(results: list[FetchResult], section: SectionConfig) -> list[
                 records.extend(extract_business_records(result))
             elif section.parser == "mobile":
                 records.extend(extract_mobile_records(result))
+            elif section.name in {"corporate_sustainability", "about_te"}:
+                records.extend(extract_section_records(result, section))
             else:
                 records.extend(extract_generic_records(result, section))
         except Exception as exc:
@@ -552,6 +626,23 @@ def extract_mobile_records(result: FetchResult) -> list[dict[str, Any]]:
         record.setdefault("cards", [])
         output.append(record)
     return output
+
+
+def extract_section_records(result: FetchResult, section: SectionConfig) -> list[dict[str, Any]]:
+    from src.scraping.section_parser import PageContext, parse_section_page
+
+    context = PageContext(
+        section=section.name,
+        category=section.name,
+        customer_segment=section.customer_segment or "corporate",
+        source_url=result.url,
+        listing_url=result.url if result.page_kind == "listing_pages" else "",
+        final_url=result.final_url,
+        raw_html_path=str(result.raw_html_path),
+        page_kind=result.page_kind,
+        from_cache=result.from_cache,
+    )
+    return parse_section_page(result.html, context)
 
 
 def remove_noise_nodes(soup: BeautifulSoup) -> None:
@@ -739,6 +830,10 @@ def post_process_records(section: str, records: list[dict[str, Any]]) -> list[di
         from src.scraping.mobile_post_processor import cleanup_mobile_records, post_process_records as process
 
         return cleanup_mobile_records(process(records))
+    if section in {"corporate_sustainability", "about_te"}:
+        from src.scraping.section_post_processor import post_process_records as process
+
+        return process(records)
     return [generic_post_process(section, record) for record in records]
 
 
@@ -1203,6 +1298,16 @@ def wait_for_qdrant(timeout_seconds: int = 60) -> None:
     raise RuntimeError("Qdrant did not become ready on http://localhost:6333.")
 
 
+def qdrant_client() -> Any:
+    from qdrant_client import QdrantClient
+
+    return QdrantClient(
+        url=QDRANT_URL,
+        timeout=QDRANT_CLIENT_TIMEOUT_SECONDS,
+        check_compatibility=False,
+    )
+
+
 def embed_text(text: str, model: str) -> list[float]:
     response = requests.post(OLLAMA_ENDPOINT, json={"model": model, "input": text}, timeout=180)
     response.raise_for_status()
@@ -1226,9 +1331,9 @@ def find_chunks_path(config: PipelineConfig) -> Path:
 
 
 def ensure_qdrant_collection(config: PipelineConfig, vector_size: int) -> None:
-    from qdrant_client import QdrantClient, models
+    from qdrant_client import models
 
-    client = QdrantClient(url=QDRANT_URL)
+    client = qdrant_client()
     if not client.collection_exists(config.collection_name):
         client.create_collection(
             collection_name=config.collection_name,
@@ -1259,7 +1364,7 @@ def ensure_qdrant_collection(config: PipelineConfig, vector_size: int) -> None:
 
 
 def generate_embeddings_and_upsert(config: PipelineConfig) -> dict[str, Any]:
-    from qdrant_client import QdrantClient, models
+    from qdrant_client import models
 
     ensure_workspace(config)
     chunks_path = find_chunks_path(config)
@@ -1275,7 +1380,7 @@ def generate_embeddings_and_upsert(config: PipelineConfig) -> dict[str, Any]:
     first_vector = embed_text(chunk_text(chunks[0]), config.embedding_model)
     vector_size = len(first_vector)
     ensure_qdrant_collection(config, vector_size)
-    client = QdrantClient(url=QDRANT_URL)
+    client = qdrant_client()
     upsert_batch: list[models.PointStruct] = []
     points_written = 0
     failures = 0
@@ -1336,9 +1441,7 @@ def chunk_text(chunk: dict[str, Any]) -> str:
 
 
 def create_qdrant_snapshot(config: PipelineConfig) -> dict[str, Any]:
-    from qdrant_client import QdrantClient
-
-    client = QdrantClient(url=QDRANT_URL)
+    client = qdrant_client()
     info = client.create_snapshot(collection_name=config.collection_name)
     snapshot_name = getattr(info, "name", None) or info.get("name")
     snapshot_path = find_snapshot_file(config, str(snapshot_name))
@@ -1512,6 +1615,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--qdrant-image", default=DEFAULT_QDRANT_IMAGE)
     parser.add_argument("--qdrant-runtime", default=DEFAULT_QDRANT_RUNTIME, choices=["udocker", "docker"])
     parser.add_argument("--enable-mobile", type=parse_bool, default=False)
+    parser.add_argument(
+        "--enabled-sections",
+        nargs="*",
+        default=None,
+        help="Optional explicit section names to enable for scraping.",
+    )
     return parser.parse_args(argv)
 
 
@@ -1519,6 +1628,12 @@ def build_config(args: argparse.Namespace) -> PipelineConfig:
     sections = default_sections()
     if args.enable_mobile:
         sections["mobile"].enabled = True
+    if args.enabled_sections is not None:
+        unknown = sorted(set(args.enabled_sections) - set(sections))
+        if unknown:
+            raise ValueError(f"Unknown section names: {unknown}")
+        for section in sections.values():
+            section.enabled = section.name in set(args.enabled_sections)
     return PipelineConfig(
         workspace_dir=args.workspace_dir,
         repo_dir=args.repo_dir,

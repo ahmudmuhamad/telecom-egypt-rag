@@ -22,6 +22,9 @@ data/logs/*
 *.log
 !data/logs/.gitkeep
 
+# Artifacts
+artifacts/
+
 # Uploads may contain private customer or reviewer files.
 data/uploads/**
 !data/uploads/

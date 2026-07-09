@@ -34,4 +34,14 @@ sources:
     enabled: false
     description: Additional public Telecom Egypt / WE website pages scraped locally and reviewed before cloud indexing
 
+  - category: corporate_sustainability
+    path: data/processed/corporate_sustainability/corporate_sustainability_post_processed.jsonl
+    enabled: false
+    description: Telecom Egypt Corporate Sustainability, Sustainability, Climate Change, Corporate Quality, ESMS, sustainability reports, and corporate quality content in English and Arabic
+
+  - category: about_te
+    path: data/processed/about_te/about_te_post_processed.jsonl
+    enabled: false
+    description: Telecom Egypt About TE pages, company overview, board of directors, management team, museum, history, awards, corporate strategy, media, careers, training, and contact pages in English and Arabic
+
 # Future website sections can be added like this:
